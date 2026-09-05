@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { needsMfaChallenge } from "./mfa";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/auth", "/privacidad", "/terminos", "/seguridad"];
+const MFA_CHALLENGE_PATH = "/mfa-challenge";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -43,6 +45,16 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/"; // la raíz elige la pantalla de inicio según nav_order
     return NextResponse.redirect(url);
+  }
+
+  // Quien activó 2FA queda en AAL1 justo después de signInWithPassword —
+  // exigimos completar el desafío antes de ver cualquier otra pantalla.
+  if (user && !request.nextUrl.pathname.startsWith(MFA_CHALLENGE_PATH)) {
+    if (await needsMfaChallenge(supabase)) {
+      const url = request.nextUrl.clone();
+      url.pathname = MFA_CHALLENGE_PATH;
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

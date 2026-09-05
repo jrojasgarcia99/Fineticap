@@ -15,6 +15,7 @@ import { RestoreCategoriesCard } from "@/components/config/RestoreCategoriesCard
 import { ResetDebtsCard } from "@/components/config/ResetDebtsCard";
 import { NavOrderCard } from "@/components/config/NavOrderCard";
 import { ConfigSections } from "@/components/config/ConfigSections";
+import { MfaCard } from "@/components/config/MfaCard";
 import { resolveNavItems } from "@/components/layout/nav-items";
 import { normalizeTema } from "@/lib/theme";
 import {
@@ -89,9 +90,7 @@ export default async function ConfigPage({
             content: (
               <>
                 <BiometricLockCard />
-                <p className="mt-2 px-1 text-xs text-gray-500">
-                  {t("config.section.securityPlaceholder")}
-                </p>
+                <MfaCard />
               </>
             ),
           },

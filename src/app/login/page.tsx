@@ -12,9 +12,9 @@ import { BrandMark } from "@/components/ui/BrandMark";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; deleted?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string; mfaDisabled?: string }>;
 }) {
-  const { error, deleted } = await searchParams;
+  const { error, deleted, mfaDisabled } = await searchParams;
   const locale = await getRequestLocale();
   const t = tFor(locale);
   const errorMsg =
@@ -35,6 +35,11 @@ export default async function LoginPage({
             {deleted && (
               <p className="mb-4 text-sm text-green bg-green/10 rounded-lg px-3 py-2">
                 {t("auth.accountDeleted")}
+              </p>
+            )}
+            {mfaDisabled && (
+              <p className="mb-4 text-sm text-green bg-green/10 rounded-lg px-3 py-2">
+                {t("auth.mfaDisabledNotice")}
               </p>
             )}
             <form action={login} className="space-y-4">

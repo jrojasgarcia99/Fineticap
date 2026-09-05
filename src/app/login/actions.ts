@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale, LOCALE_COOKIE } from "@/lib/i18n/locale";
 import { tFor } from "@/lib/i18n";
+import { needsMfaChallenge } from "@/lib/supabase/mfa";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
@@ -27,6 +28,10 @@ export async function login(formData: FormData) {
       : error.message;
     redirect(`/login?error=${encodeURIComponent(msg)}`);
   }
+  if (await needsMfaChallenge(supabase)) {
+    redirect("/mfa-challenge");
+  }
+
   // La raíz decide la pantalla de inicio según nav_order del usuario.
   redirect("/");
 }
