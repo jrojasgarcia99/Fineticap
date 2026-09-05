@@ -14,6 +14,7 @@ import { PaymentMethodsCard } from "@/components/config/PaymentMethodsCard";
 import { RestoreCategoriesCard } from "@/components/config/RestoreCategoriesCard";
 import { ResetDebtsCard } from "@/components/config/ResetDebtsCard";
 import { NavOrderCard } from "@/components/config/NavOrderCard";
+import { ConfigSections } from "@/components/config/ConfigSections";
 import { resolveNavItems } from "@/components/layout/nav-items";
 import { normalizeTema } from "@/lib/theme";
 import {
@@ -63,77 +64,152 @@ export default async function ConfigPage({
         </p>
       )}
 
-      <LanguageCard current={locale} action={updateIdioma} />
-
-      <AppearanceCard current={normalizeTema(space.tema)} action={updateTema} />
-
-      <BiometricLockCard />
-
-      <AssistantSettingsCard
-        current={space.asistente_instrucciones ?? ""}
-        action={updateAsistenteInstrucciones}
+      <ConfigSections
+        sections={[
+          {
+            id: "general",
+            label: t("config.section.general"),
+            content: (
+              <>
+                <LanguageCard current={locale} action={updateIdioma} />
+                <AppearanceCard current={normalizeTema(space.tema)} action={updateTema} />
+                <NavOrderCard
+                  items={resolveNavItems(space.nav_order).map((i) => ({
+                    href: i.href,
+                    labelKey: i.labelKey,
+                  }))}
+                  action={updateNavOrder}
+                />
+              </>
+            ),
+          },
+          {
+            id: "security",
+            label: t("config.section.security"),
+            content: (
+              <>
+                <BiometricLockCard />
+                <p className="mt-2 px-1 text-xs text-gray-500">
+                  {t("config.section.securityPlaceholder")}
+                </p>
+              </>
+            ),
+          },
+          {
+            id: "budget",
+            label: t("config.section.budget"),
+            content: (
+              <>
+                <MonedasCard
+                  activas={currency.activas}
+                  primaria={currency.primaria}
+                  action={updateMonedas}
+                />
+                <PaymentMethodsCard
+                  methods={paymentMethods ?? []}
+                  addAction={addPaymentMethod}
+                  deleteAction={deletePaymentMethod}
+                />
+                <RestoreCategoriesCard action={restoreDefaultCategories} />
+              </>
+            ),
+          },
+          {
+            id: "debts",
+            label: t("config.section.debts"),
+            content: <ResetDebtsCard action={resetDeudas} />,
+          },
+          {
+            id: "fund",
+            label: t("config.section.fund"),
+            content: (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("config.goalsParams")}</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <p className="text-xs text-gray-500 mb-4">{t("config.goalsMovedNote")}</p>
+                  <form action={updateConfig} className="grid sm:grid-cols-2 gap-4">
+                    <Field label={t("config.fundBasicMonths")}>
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        name="meses_fondo_basico"
+                        defaultValue={space.meses_fondo_basico}
+                      />
+                    </Field>
+                    <Field label={t("config.fundIdealMonths")}>
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        name="meses_fondo_ideal"
+                        defaultValue={space.meses_fondo_ideal}
+                      />
+                    </Field>
+                    <div className="sm:col-span-2 flex justify-end">
+                      <Button type="submit">{t("config.saveConfig")}</Button>
+                    </div>
+                  </form>
+                </CardBody>
+              </Card>
+            ),
+          },
+          {
+            id: "family",
+            label: t("config.section.family"),
+            content: (
+              <FamilyBudgetCard
+                linked={family !== null}
+                inviteCode={family?.familyBudget.invite_code ?? null}
+                members={
+                  family?.members.map((m) => ({
+                    user_id: m.user_id,
+                    display_name: m.display_name,
+                    salario_mensual: m.salario_mensual,
+                    salario_fuente: m.salario_fuente,
+                  })) ?? []
+                }
+                primaria={family?.currency.primaria ?? currency.primaria}
+                myUserId={user.id}
+                salarioFuente={space.salario_fuente}
+                salarioMensual={space.salario_mensual}
+                updateSalarioAction={updateSalarioFuente}
+                activateAction={activateFamilyBudget}
+                joinAction={joinFamilyBudgetByCode}
+                leaveAction={leaveFamilyBudget}
+              />
+            ),
+          },
+          {
+            id: "assistant",
+            label: t("config.section.assistant"),
+            content: (
+              <AssistantSettingsCard
+                current={space.asistente_instrucciones ?? ""}
+                action={updateAsistenteInstrucciones}
+              />
+            ),
+          },
+          {
+            id: "subscription",
+            label: t("config.section.subscription"),
+            content: (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t("config.section.subscription")}</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <p className="text-xs text-gray-500">
+                    {t("config.section.subscriptionPlaceholder")}
+                  </p>
+                </CardBody>
+              </Card>
+            ),
+          },
+        ]}
       />
-
-      <MonedasCard activas={currency.activas} primaria={currency.primaria} action={updateMonedas} />
-
-      <PaymentMethodsCard
-        methods={paymentMethods ?? []}
-        addAction={addPaymentMethod}
-        deleteAction={deletePaymentMethod}
-      />
-
-      <NavOrderCard
-        items={resolveNavItems(space.nav_order).map((i) => ({
-          href: i.href,
-          labelKey: i.labelKey,
-        }))}
-        action={updateNavOrder}
-      />
-
-      <RestoreCategoriesCard action={restoreDefaultCategories} />
-
-      <ResetDebtsCard action={resetDeudas} />
-
-      <FamilyBudgetCard
-        linked={family !== null}
-        inviteCode={family?.familyBudget.invite_code ?? null}
-        members={
-          family?.members.map((m) => ({
-            user_id: m.user_id,
-            display_name: m.display_name,
-            salario_mensual: m.salario_mensual,
-            salario_fuente: m.salario_fuente,
-          })) ?? []
-        }
-        primaria={family?.currency.primaria ?? currency.primaria}
-        myUserId={user.id}
-        salarioFuente={space.salario_fuente}
-        salarioMensual={space.salario_mensual}
-        updateSalarioAction={updateSalarioFuente}
-        activateAction={activateFamilyBudget}
-        joinAction={joinFamilyBudgetByCode}
-        leaveAction={leaveFamilyBudget}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("config.goalsParams")}</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <p className="text-xs text-gray-500 mb-4">{t("config.goalsMovedNote")}</p>
-          <form action={updateConfig} className="grid sm:grid-cols-2 gap-4">
-            <Field label={t("config.fundBasicMonths")}>
-              <Input type="number" step="1" min="0" name="meses_fondo_basico" defaultValue={space.meses_fondo_basico} />
-            </Field>
-            <Field label={t("config.fundIdealMonths")}>
-              <Input type="number" step="1" min="0" name="meses_fondo_ideal" defaultValue={space.meses_fondo_ideal} />
-            </Field>
-            <div className="sm:col-span-2 flex justify-end">
-              <Button type="submit">{t("config.saveConfig")}</Button>
-            </div>
-          </form>
-        </CardBody>
-      </Card>
     </div>
   );
 }
