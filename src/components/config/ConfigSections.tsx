@@ -28,7 +28,7 @@ export function ConfigSections({ sections }: { sections: ConfigSection[] }) {
             className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
               s.id === active?.id
                 ? "bg-white text-navy shadow-[var(--shadow-soft)]"
-                : "text-navy/60 hover:text-navy"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             {s.label}
