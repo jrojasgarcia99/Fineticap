@@ -86,8 +86,9 @@ function ContentEs() {
         <strong>Vercel</strong> (hospedaje de la aplicación), dos proveedores especializados en
         seguridad de infraestructura. Supabase mantiene certificación{" "}
         <strong>SOC 2 Tipo II</strong>, una auditoría independiente sobre sus controles de
-        seguridad. Nosotros no operamos servidores propios ni almacenamos copias de tus datos
-        fuera de estos proveedores.
+        seguridad — es una certificación de Supabase como proveedor de infraestructura, no una
+        certificación propia de Finéticap como producto. Nosotros no operamos servidores propios
+        ni almacenamos copias de tus datos fuera de estos proveedores.
       </p>
 
       <H2>4. Autenticación</H2>
@@ -153,8 +154,9 @@ function ContentEn() {
         We use <strong>Supabase</strong> (database and authentication) and <strong>Vercel</strong>{" "}
         (application hosting), two providers specialized in infrastructure security. Supabase
         maintains <strong>SOC 2 Type II</strong> certification, an independent audit of its
-        security controls. We don&apos;t run our own servers or keep copies of your data outside
-        these providers.
+        security controls — that certification belongs to Supabase as an infrastructure provider,
+        not to Finéticap as a product. We don&apos;t run our own servers or keep copies of your
+        data outside these providers.
       </p>
 
       <H2>4. Authentication</H2>
