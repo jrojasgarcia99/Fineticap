@@ -47,6 +47,20 @@ export function MfaCard() {
   async function startEnroll() {
     setError("");
     setBusy(true);
+
+    // Un intento anterior sin terminar deja un factor "unverified" a medias
+    // — con el mismo friendly_name en blanco, choca con un enroll() nuevo.
+    // Lo limpiamos antes de intentar de nuevo.
+    const { data: existing } = await supabase.auth.mfa.listFactors();
+    const stale = existing?.all?.filter(
+      (f) => f.factor_type === "totp" && f.status === "unverified",
+    );
+    if (stale?.length) {
+      await Promise.all(
+        stale.map((f) => supabase.auth.mfa.unenroll({ factorId: f.id })),
+      );
+    }
+
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
     setBusy(false);
     if (error || !data) {
@@ -115,9 +129,14 @@ export function MfaCard() {
     await refreshStatus();
   }
 
-  function cancel() {
+  async function cancel() {
     setError("");
     setCode("");
+    // Si estábamos a mitad de un enroll nuevo (no desactivando uno ya
+    // verificado), limpiamos el factor "unverified" que quedaría a medias.
+    if (step === "enrolling" && factorId) {
+      await supabase.auth.mfa.unenroll({ factorId });
+    }
     void refreshStatus();
   }
 
