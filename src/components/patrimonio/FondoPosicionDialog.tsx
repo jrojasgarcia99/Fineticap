@@ -30,7 +30,10 @@ export function FondoPosicionDialog({
   const isEdit = !!posicion;
   const [open, setOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
-  const [porcentaje, setPorcentaje] = useState(posicion?.porcentaje ?? 0);
+  // String, no number — así se puede borrar el campo sin que reaparezca un
+  // "0" forzado delante de lo que se escriba después.
+  const [porcentajeStr, setPorcentajeStr] = useState(String(posicion?.porcentaje ?? ""));
+  const porcentaje = Number(porcentajeStr) || 0;
   // Informativo, no bloquea — si las otras posiciones ya suman de más (datos
   // previos a esta corrección), forzar un tope acá dejaría sin forma de
   // arreglarlas. Se avisa, pero se deja escribir cualquier valor.
@@ -78,8 +81,8 @@ export function FondoPosicionDialog({
               min="0"
               max="100"
               name="porcentaje"
-              value={porcentaje}
-              onChange={(e) => setPorcentaje(Number(e.target.value) || 0)}
+              value={porcentajeStr}
+              onChange={(e) => setPorcentajeStr(e.target.value)}
             />
           </Field>
           <p className={`text-xs ${seExcede ? "text-red" : "text-gray-400"}`}>

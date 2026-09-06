@@ -11,12 +11,14 @@ export function FondoMenu({
   fondo,
   currency,
   isFamilyMember,
+  tienePosiciones,
   updateAction,
   deleteAction,
 }: {
   fondo: Fondo;
   currency: CurrencyConfig;
   isFamilyMember: boolean;
+  tienePosiciones?: boolean;
   updateAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
 }) {
@@ -39,6 +41,7 @@ export function FondoMenu({
         currency={currency}
         fondo={fondo}
         isFamilyMember={isFamilyMember}
+        tienePosiciones={tienePosiciones}
         createAction={async () => {}}
         updateAction={updateAction}
         deleteAction={deleteAction}

@@ -18,6 +18,7 @@ export function FondoDialog({
   deleteAction,
   fondo,
   isFamilyMember,
+  tienePosiciones,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,10 @@ export function FondoDialog({
   deleteAction: (formData: FormData) => void | Promise<void>;
   fondo?: Fondo;
   isFamilyMember?: boolean;
+  /** Si el fondo ya tiene posiciones, la tasa/plazo a nivel de fondo no se
+   *  usa (la proyección pasa a ser la suma de cada posición) — se oculta
+   *  para no confundir. */
+  tienePosiciones?: boolean;
 }) {
   const t = useT();
   const isEdit = !!fondo;
@@ -88,29 +93,35 @@ export function FondoDialog({
           </Field>
         )}
 
-        <p className="text-xs text-gray-400">{t("fondos.projectionHint")}</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("fondos.estimatedRate")}>
-            <Input
-              type="number"
-              step="0.1"
-              min="0"
-              name="tasa_retorno_estimada"
-              defaultValue={fondo?.tasa_retorno_estimada ?? ""}
-              placeholder="0"
-            />
-          </Field>
-          <Field label={t("fondos.term")}>
-            <Select name="plazo_proyeccion_anios" defaultValue={fondo?.plazo_proyeccion_anios ?? ""}>
-              <option value="">—</option>
-              {FONDO_PLAZOS.map((p) => (
-                <option key={p} value={p}>
-                  {p} {t("fondos.years")}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
+        {tienePosiciones ? (
+          <p className="text-xs text-gray-400">{t("fondos.rateMovedToPositions")}</p>
+        ) : (
+          <>
+            <p className="text-xs text-gray-400">{t("fondos.projectionHint")}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("fondos.estimatedRate")}>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  name="tasa_retorno_estimada"
+                  defaultValue={fondo?.tasa_retorno_estimada ?? ""}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label={t("fondos.term")}>
+                <Select name="plazo_proyeccion_anios" defaultValue={fondo?.plazo_proyeccion_anios ?? ""}>
+                  <option value="">—</option>
+                  {FONDO_PLAZOS.map((p) => (
+                    <option key={p} value={p}>
+                      {p} {t("fondos.years")}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          </>
+        )}
 
         <Button type="submit" className="w-full">
           {isEdit ? t("common.save") : t("common.add")}

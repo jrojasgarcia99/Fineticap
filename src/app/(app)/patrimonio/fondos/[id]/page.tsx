@@ -162,6 +162,7 @@ export default async function FondoDetallePage({
               fondo={fondo}
               currency={currency}
               isFamilyMember={isFamilyMember}
+              tienePosiciones={posiciones.length > 0}
               updateAction={updateFondo}
               deleteAction={deleteFondo}
             />

@@ -188,6 +188,7 @@ export const en: Record<keyof typeof es, string> = {
   "fondos.pctAvailable": "Available: {n}%",
   "fondos.pctOverBy": "You went over by {n}% — all positions together shouldn't add up to more than 100%.",
   "fondos.totalAssigned": "Total assigned across positions: {n}%",
+  "fondos.rateMovedToPositions": "This fund already has positions — set the rate/term on each one below, not here.",
   "xlsx.fondoColFecha": "Date",
   "xlsx.fondoColAnio": "Year",
   "xlsx.fondoColMes": "Month",

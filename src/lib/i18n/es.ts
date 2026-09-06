@@ -195,6 +195,7 @@ export const es = {
   "fondos.pctAvailable": "Disponible: {n}%",
   "fondos.pctOverBy": "Te pasaste por {n}% — entre todas las posiciones no deberían sumar más de 100%.",
   "fondos.totalAssigned": "Total asignado entre posiciones: {n}%",
+  "fondos.rateMovedToPositions": "Este fondo ya tiene posiciones — la tasa/plazo se configura en cada una (más abajo), no acá.",
   "xlsx.fondoColFecha": "Fecha",
   "xlsx.fondoColAnio": "Año",
   "xlsx.fondoColMes": "Mes",
