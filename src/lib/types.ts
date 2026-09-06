@@ -281,6 +281,17 @@ export type Fondo = {
   created_at: string;
 };
 
+export type FondoPosicion = {
+  id: string;
+  fondo_id: string;
+  nombre: string;
+  porcentaje: number;
+  tasa_retorno_estimada: number | null;
+  plazo_proyeccion_anios: number | null;
+  orden: number;
+  created_at: string;
+};
+
 export type FondoMovimientoTipo = "aporte_presupuesto" | "rendimiento" | "saldo_inicial";
 
 export type FondoMovimiento = {
@@ -292,6 +303,7 @@ export type FondoMovimiento = {
   anio: number;
   mes: number;
   budget_item_id: string | null;
+  posicion_id: string | null;
   descripcion: string | null;
   created_by: string | null;
   created_at: string;

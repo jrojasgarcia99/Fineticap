@@ -806,6 +806,29 @@ create policy "fondos access" on fondos for all
 create index if not exists fondos_space_idx on fondos (space_id);
 create index if not exists fondos_family_idx on fondos (family_budget_id);
 
+-- Posiciones dentro de un fondo (diversificación, ej. S&P 500/Nasdaq/BTC
+-- dentro de un fondo "Inversión"), cada una con su propia tasa/plazo
+-- estimados. Ver supabase/migrations/2026-09-25_fondo_posiciones.sql.
+create table if not exists fondo_posiciones (
+  id uuid primary key default gen_random_uuid(),
+  fondo_id uuid not null references fondos(id) on delete cascade,
+  nombre text not null,
+  porcentaje numeric not null default 0,
+  tasa_retorno_estimada numeric,
+  plazo_proyeccion_anios int check (plazo_proyeccion_anios in (10,15,20,25,30)),
+  orden int not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table fondo_posiciones enable row level security;
+create policy "fondo posiciones access" on fondo_posiciones for all
+  using (exists (select 1 from fondos f where f.id = fondo_id and (
+    (f.scope_type = 'personal' and owns_space(f.space_id))
+    or (f.scope_type = 'family' and is_family_member(f.family_budget_id)))))
+  with check (exists (select 1 from fondos f where f.id = fondo_id and (
+    (f.scope_type = 'personal' and owns_space(f.space_id))
+    or (f.scope_type = 'family' and is_family_member(f.family_budget_id)))));
+create index if not exists fondo_posiciones_fondo_idx on fondo_posiciones (fondo_id, orden);
+
 create table if not exists fondo_movimientos (
   id uuid primary key default gen_random_uuid(),
   fondo_id uuid not null references fondos(id) on delete cascade,
@@ -815,10 +838,10 @@ create table if not exists fondo_movimientos (
   anio int not null,
   mes int not null check (mes between 1 and 12),
   budget_item_id uuid references budget_items(id) on delete set null,
+  posicion_id uuid references fondo_posiciones(id) on delete set null,
   descripcion text,
   created_by uuid references auth.users(id) on delete set null,
-  created_at timestamptz not null default now(),
-  unique (budget_item_id)
+  created_at timestamptz not null default now()
 );
 alter table fondo_movimientos enable row level security;
 create policy "fondo movimientos access" on fondo_movimientos for all
@@ -874,4 +897,4 @@ language sql security definer set search_path = public as $$
   order by m.joined_at;
 $$;
 
-revoke all on table fondos, fondo_movimientos from anon;
+revoke all on table fondos, fondo_movimientos, fondo_posiciones from anon;

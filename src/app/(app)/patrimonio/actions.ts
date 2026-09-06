@@ -172,10 +172,12 @@ export async function deleteFondo(formData: FormData) {
   revalidatePath("/familiar");
 }
 
-/** Distribuye una línea de Ahorro/Inversión del presupuesto a UN fondo — crea
- *  el movimiento (tipo aporte_presupuesto) que queda ligado a esa línea. */
+/** Distribuye una línea de Ahorro/Inversión del presupuesto a un fondo. Si el
+ *  fondo tiene posiciones (diversificación), reparte el monto entre ellas
+ *  (según `overrides`, o proporcional a su % si no se mandó override) — una
+ *  fila de movimiento por posición. Sin posiciones, una sola fila como antes. */
 export async function distribuirBudgetItem(formData: FormData) {
-  const { supabase } = await ctx();
+  const { supabase, user } = await ctx();
   const budget_item_id = String(formData.get("budget_item_id") || "");
   const fondo_id = String(formData.get("fondo_id") || "");
   if (!budget_item_id || !fondo_id) return;
@@ -187,15 +189,52 @@ export async function distribuirBudgetItem(formData: FormData) {
     .maybeSingle<{ monto: number; moneda: string; mes: number; anio: number }>();
   if (!item) return;
 
-  await supabase.from("fondo_movimientos").insert({
-    fondo_id,
-    budget_item_id,
-    tipo: "aporte_presupuesto",
-    monto: item.monto,
-    moneda: item.moneda,
-    mes: item.mes,
-    anio: item.anio,
-  });
+  // Por si ya había una distribución previa (reasignar a otro fondo): se
+  // limpia antes de insertar la nueva, ya no hay constraint única que lo haga.
+  await supabase.from("fondo_movimientos").delete().eq("budget_item_id", budget_item_id);
+
+  const { data: posiciones } = await supabase
+    .from("fondo_posiciones")
+    .select("id, porcentaje")
+    .eq("fondo_id", fondo_id)
+    .order("orden");
+
+  if (posiciones && posiciones.length > 0) {
+    const overridesRaw = String(formData.get("overrides") || "{}");
+    let overrides: Record<string, number> = {};
+    try {
+      overrides = JSON.parse(overridesRaw);
+    } catch {
+      overrides = {};
+    }
+    const totalPct = posiciones.reduce((a, p) => a + Number(p.porcentaje), 0) || 100;
+    const filas = posiciones.map((p) => ({
+      fondo_id,
+      budget_item_id,
+      posicion_id: p.id,
+      tipo: "aporte_presupuesto" as const,
+      monto:
+        overrides[p.id] != null && !Number.isNaN(overrides[p.id])
+          ? overrides[p.id]
+          : (item.monto * Number(p.porcentaje)) / totalPct,
+      moneda: item.moneda,
+      mes: item.mes,
+      anio: item.anio,
+      created_by: user.id,
+    }));
+    await supabase.from("fondo_movimientos").insert(filas);
+  } else {
+    await supabase.from("fondo_movimientos").insert({
+      fondo_id,
+      budget_item_id,
+      tipo: "aporte_presupuesto",
+      monto: item.monto,
+      moneda: item.moneda,
+      mes: item.mes,
+      anio: item.anio,
+      created_by: user.id,
+    });
+  }
   revalidatePath("/patrimonio");
   revalidatePath("/presupuesto");
 }
@@ -212,23 +251,44 @@ export async function quitarDistribucion(formData: FormData) {
 }
 
 /** Corrige el monto de una línea ya distribuida (el trigger bloquea el DELETE,
- *  pero editar el monto sí se permite) — ajusta también el movimiento del
- *  fondo para que el saldo cuadre. */
+ *  pero editar el monto sí se permite) — reescala TODOS los movimientos
+ *  ligados (puede haber varios si se repartió entre posiciones) por la misma
+ *  proporción, para que el saldo del fondo siga cuadrando. */
 export async function editarLineaDistribuida(formData: FormData) {
   const { supabase } = await ctx();
   const id = String(formData.get("id") || "");
   const monto = Number(formData.get("monto") || 0);
   if (!id) return;
+
+  const { data: movs } = await supabase
+    .from("fondo_movimientos")
+    .select("id, monto")
+    .eq("budget_item_id", id);
+
   await supabase.from("budget_items").update({ monto }).eq("id", id);
-  await supabase.from("fondo_movimientos").update({ monto }).eq("budget_item_id", id);
+
+  if (movs && movs.length > 0) {
+    const totalActual = movs.reduce((a, m) => a + Number(m.monto), 0);
+    const factor = totalActual > 0 ? monto / totalActual : 0;
+    await Promise.all(
+      movs.map((m) =>
+        supabase
+          .from("fondo_movimientos")
+          .update({ monto: Number(m.monto) * factor })
+          .eq("id", m.id),
+      ),
+    );
+  }
   revalidatePath("/patrimonio");
   revalidatePath("/presupuesto");
 }
 
-/** Rendimiento/dividendo cargado a mano — cualquier tipo de fondo. */
+/** Rendimiento/dividendo cargado a mano — a una posición específica, o al
+ *  fondo en general si no se elige ninguna. */
 export async function agregarRendimiento(formData: FormData) {
   const { supabase, user } = await ctx();
   const fondo_id = String(formData.get("fondo_id") || "");
+  const posicion_id = String(formData.get("posicion_id") || "") || null;
   const monto = Number(formData.get("monto") || 0);
   const moneda = String(formData.get("moneda") || "CRC");
   const descripcion = String(formData.get("descripcion") || "").trim() || null;
@@ -236,6 +296,7 @@ export async function agregarRendimiento(formData: FormData) {
   const now = new Date();
   await supabase.from("fondo_movimientos").insert({
     fondo_id,
+    posicion_id,
     tipo: "rendimiento",
     monto,
     moneda,
@@ -246,5 +307,54 @@ export async function agregarRendimiento(formData: FormData) {
   });
   revalidatePath("/patrimonio");
   revalidatePath("/familiar");
+}
+
+// ============================================================================
+// POSICIONES (diversificación dentro de un fondo)
+// ============================================================================
+
+export async function createFondoPosicion(formData: FormData) {
+  const { supabase } = await ctx();
+  const fondo_id = String(formData.get("fondo_id") || "");
+  const nombre = String(formData.get("nombre") || "").trim();
+  if (!fondo_id || !nombre) return;
+  const porcentaje = Number(formData.get("porcentaje") || 0);
+  const tasaRaw = formData.get("tasa_retorno_estimada");
+  const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
+  const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
+  const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
+    ? plazoRaw
+    : null;
+  await supabase
+    .from("fondo_posiciones")
+    .insert({ fondo_id, nombre, porcentaje, tasa_retorno_estimada, plazo_proyeccion_anios });
+  revalidatePath("/patrimonio");
+}
+
+export async function updateFondoPosicion(formData: FormData) {
+  const { supabase } = await ctx();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  const nombre = String(formData.get("nombre") || "").trim();
+  const porcentaje = Number(formData.get("porcentaje") || 0);
+  const tasaRaw = formData.get("tasa_retorno_estimada");
+  const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
+  const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
+  const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
+    ? plazoRaw
+    : null;
+  await supabase
+    .from("fondo_posiciones")
+    .update({ nombre, porcentaje, tasa_retorno_estimada, plazo_proyeccion_anios })
+    .eq("id", id);
+  revalidatePath("/patrimonio");
+}
+
+export async function deleteFondoPosicion(formData: FormData) {
+  const { supabase } = await ctx();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  await supabase.from("fondo_posiciones").delete().eq("id", id);
+  revalidatePath("/patrimonio");
 }
 

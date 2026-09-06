@@ -84,9 +84,37 @@ export default async function PresupuestoPage({
   const budgetItems = (items ?? []) as BudgetItem[];
   const deudasList = (deudas ?? []) as Deuda[];
 
+  const todosFondosIds = [
+    ...(fondosPersonales ?? []).map((f) => f.id),
+    ...(fondosFamiliares ?? []).map((f) => f.id),
+  ];
+  const { data: posicionesRaw } = todosFondosIds.length
+    ? await supabase
+        .from("fondo_posiciones")
+        .select("id, fondo_id, nombre, porcentaje")
+        .in("fondo_id", todosFondosIds)
+        .order("orden")
+    : { data: [] as { id: string; fondo_id: string; nombre: string; porcentaje: number }[] };
+  const posicionesPorFondo = new Map<string, { id: string; nombre: string; porcentaje: number }[]>();
+  for (const p of posicionesRaw ?? []) {
+    const arr = posicionesPorFondo.get(p.fondo_id) ?? [];
+    arr.push({ id: p.id, nombre: p.nombre, porcentaje: Number(p.porcentaje) });
+    posicionesPorFondo.set(p.fondo_id, arr);
+  }
+
   const fondosDisponibles: FondoOption[] = [
-    ...(fondosPersonales ?? []).map((f) => ({ id: f.id, nombre: f.nombre, compartido: false })),
-    ...(fondosFamiliares ?? []).map((f) => ({ id: f.id, nombre: f.nombre, compartido: true })),
+    ...(fondosPersonales ?? []).map((f) => ({
+      id: f.id,
+      nombre: f.nombre,
+      compartido: false,
+      posiciones: posicionesPorFondo.get(f.id) ?? [],
+    })),
+    ...(fondosFamiliares ?? []).map((f) => ({
+      id: f.id,
+      nombre: f.nombre,
+      compartido: true,
+      posiciones: posicionesPorFondo.get(f.id) ?? [],
+    })),
   ];
 
   const ahorroInversionIds = budgetItems

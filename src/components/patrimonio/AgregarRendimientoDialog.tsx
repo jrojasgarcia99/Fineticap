@@ -2,19 +2,21 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Field, Input } from "@/components/ui/Input";
+import { Field, Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { useT } from "@/components/i18n/I18nProvider";
-import type { Moneda } from "@/lib/types";
+import type { Moneda, FondoPosicion } from "@/lib/types";
 
 export function AgregarRendimientoDialog({
   fondoId,
   moneda,
+  posiciones,
   action,
 }: {
   fondoId: string;
   moneda: Moneda;
+  posiciones?: FondoPosicion[];
   action: (formData: FormData) => void | Promise<void>;
 }) {
   const t = useT();
@@ -40,6 +42,18 @@ export function AgregarRendimientoDialog({
         >
           <input type="hidden" name="fondo_id" value={fondoId} />
           <input type="hidden" name="moneda" value={moneda} />
+          {posiciones && posiciones.length > 0 && (
+            <Field label={t("fondos.forPosition")}>
+              <Select name="posicion_id" defaultValue="">
+                <option value="">{t("fondos.noPosition")}</option>
+                {posiciones.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
           <Field label={t("fondos.returnAmount")}>
             <Input type="number" step="0.01" min="0" name="monto" required autoFocus />
           </Field>

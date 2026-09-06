@@ -11,7 +11,12 @@ import { useT } from "@/components/i18n/I18nProvider";
 import type { CurrencyConfig } from "@/lib/currency";
 import type { BudgetRowItem } from "./EditableBudgetRow";
 
-export type FondoOption = { id: string; nombre: string; compartido: boolean };
+export type FondoOption = {
+  id: string;
+  nombre: string;
+  compartido: boolean;
+  posiciones: { id: string; nombre: string; porcentaje: number }[];
+};
 
 /**
  * Ventana para agregar, editar o eliminar una línea del presupuesto (personal o
@@ -50,8 +55,26 @@ export function BudgetRowDialog({
   const t = useT();
   const isEdit = !!item;
   const [confirmDel, setConfirmDel] = useState(false);
+  const [selectedFondoId, setSelectedFondoId] = useState("");
+  const [overrides, setOverrides] = useState<Record<string, number>>({});
   const puedeDistribuir =
     isEdit && (categoria === "ahorros" || categoria === "inversion") && fondosDisponibles;
+  const selectedFondo = fondosDisponibles?.find((f) => f.id === selectedFondoId);
+
+  function pickFondo(id: string) {
+    setSelectedFondoId(id);
+    const f = fondosDisponibles?.find((x) => x.id === id);
+    if (f && f.posiciones.length > 0 && item) {
+      const totalPct = f.posiciones.reduce((a, p) => a + p.porcentaje, 0) || 100;
+      setOverrides(
+        Object.fromEntries(
+          f.posiciones.map((p) => [p.id, Math.round((item.monto * p.porcentaje) / totalPct)]),
+        ),
+      );
+    } else {
+      setOverrides({});
+    }
+  }
 
   return (
     <Sheet
@@ -148,22 +171,61 @@ export function BudgetRowDialog({
             <form
               action={async (fd) => {
                 fd.set("budget_item_id", item!.id);
+                if (selectedFondo && selectedFondo.posiciones.length > 0) {
+                  fd.set("overrides", JSON.stringify(overrides));
+                }
                 await distribuirAction?.(fd);
               }}
-              className="flex items-center gap-2"
+              className="space-y-2"
             >
-              <Select name="fondo_id" required className="flex-1">
-                <option value="">{t("fondos.selectFund")}</option>
-                {fondosDisponibles!.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.nombre}
-                    {f.compartido ? ` (${t("fondos.shared")})` : ""}
-                  </option>
-                ))}
-              </Select>
-              <Button type="submit" variant="secondary">
-                {t("common.add")}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Select
+                  name="fondo_id"
+                  required
+                  className="flex-1"
+                  value={selectedFondoId}
+                  onChange={(e) => pickFondo(e.target.value)}
+                >
+                  <option value="">{t("fondos.selectFund")}</option>
+                  {fondosDisponibles!.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nombre}
+                      {f.compartido ? ` (${t("fondos.shared")})` : ""}
+                    </option>
+                  ))}
+                </Select>
+                {(!selectedFondo || selectedFondo.posiciones.length === 0) && (
+                  <Button type="submit" variant="secondary">
+                    {t("common.add")}
+                  </Button>
+                )}
+              </div>
+
+              {selectedFondo && selectedFondo.posiciones.length > 0 && (
+                <div className="space-y-2 rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500">{t("fondos.splitHint")}</p>
+                  {selectedFondo.posiciones.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2">
+                      <label className="text-sm text-gray-700">
+                        {p.nombre} <span className="text-xs text-gray-400">({p.porcentaje}%)</span>
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={overrides[p.id] ?? 0}
+                        onChange={(e) =>
+                          setOverrides((prev) => ({ ...prev, [p.id]: Number(e.target.value) }))
+                        }
+                        className="w-28"
+                      />
+                    </div>
+                  ))}
+                  <Button type="submit" variant="secondary" className="w-full">
+                    {t("common.add")}
+                  </Button>
+                </div>
+              )}
             </form>
           )}
         </div>

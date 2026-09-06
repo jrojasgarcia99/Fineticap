@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import ExcelJS from "exceljs";
 import { getPersonalContext } from "@/lib/data";
 import { tFor, mesesLabel } from "@/lib/i18n";
-import type { Fondo, FondoMovimiento } from "@/lib/types";
+import type { Fondo, FondoMovimiento, FondoPosicion } from "@/lib/types";
 
 const XLSX_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -23,14 +23,19 @@ export async function GET(req: NextRequest) {
   const fondo = fondoRaw as Fondo | null;
   if (!fondo) return new Response("No autorizado", { status: 403 });
 
-  const { data: movRaw } = await supabase
-    .from("fondo_movimientos")
-    .select("*")
-    .eq("fondo_id", fondoId)
-    .order("anio", { ascending: false })
-    .order("mes", { ascending: false })
-    .order("created_at", { ascending: false });
+  const [{ data: movRaw }, { data: posRaw }] = await Promise.all([
+    supabase
+      .from("fondo_movimientos")
+      .select("*")
+      .eq("fondo_id", fondoId)
+      .order("anio", { ascending: false })
+      .order("mes", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase.from("fondo_posiciones").select("*").eq("fondo_id", fondoId),
+  ]);
   const movimientos = (movRaw ?? []) as FondoMovimiento[];
+  const posiciones = (posRaw ?? []) as FondoPosicion[];
+  const posicionNombre = new Map(posiciones.map((p) => [p.id, p.nombre]));
 
   let nombrePorUsuario = new Map<string, string>();
   if (fondo.scope_type === "family") {
@@ -59,11 +64,14 @@ export async function GET(req: NextRequest) {
     t("xlsx.fondoColAnio"),
     t("xlsx.fondoColMes"),
     t("xlsx.fondoColTipo"),
+    ...(posiciones.length > 0 ? [t("fondos.positions")] : []),
     t("xlsx.fondoColDescripcion"),
     t("xlsx.fondoColMonto"),
     t("xlsx.fondoColMoneda"),
     ...(fondo.scope_type === "family" ? [t("xlsx.fondoColRegistradoPor")] : []),
   ];
+  const montoCol = headers.indexOf(t("xlsx.fondoColMonto")) + 1;
+  const descCol = headers.indexOf(t("xlsx.fondoColDescripcion")) + 1;
   const headerRow = ws.addRow(headers);
   headerRow.font = { bold: true };
 
@@ -72,6 +80,7 @@ export async function GET(req: NextRequest) {
       m.anio,
       MESES[m.mes - 1],
       tipoLabel(m.tipo),
+      ...(posiciones.length > 0 ? [m.posicion_id ? posicionNombre.get(m.posicion_id) || "—" : ""] : []),
       m.descripcion || "",
       Number(m.monto),
       m.moneda,
@@ -82,17 +91,17 @@ export async function GET(req: NextRequest) {
     ws.addRow(row);
   }
 
-  ws.getColumn(5).numFmt = "#,##0.00";
+  ws.getColumn(montoCol).numFmt = "#,##0.00";
   ws.columns.forEach((col) => {
     col.width = 18;
   });
 
   const totalRow = ws.addRow([]);
-  totalRow.getCell(4).value = t("fondos.balance");
-  totalRow.getCell(4).font = { bold: true };
-  totalRow.getCell(5).value = movimientos.reduce((a, m) => a + Number(m.monto), 0);
-  totalRow.getCell(5).font = { bold: true };
-  totalRow.getCell(5).numFmt = "#,##0.00";
+  totalRow.getCell(descCol).value = t("fondos.balance");
+  totalRow.getCell(descCol).font = { bold: true };
+  totalRow.getCell(montoCol).value = movimientos.reduce((a, m) => a + Number(m.monto), 0);
+  totalRow.getCell(montoCol).font = { bold: true };
+  totalRow.getCell(montoCol).numFmt = "#,##0.00";
 
   const buf = await wb.xlsx.writeBuffer();
   const filename = `${fondo.nombre.replace(/[^\w\-]+/g, "_")}-historial.xlsx`;
