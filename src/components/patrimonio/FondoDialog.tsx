@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, X } from "lucide-react";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -9,6 +10,16 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useT } from "@/components/i18n/I18nProvider";
 import { FONDO_TIPOS, FONDO_PLAZOS, type Fondo } from "@/lib/types";
 import type { CurrencyConfig } from "@/lib/currency";
+
+type AllocRow = { key: string; nombre: string; porcentaje: string; tasa: string; plazo: string };
+let allocRowSeq = 0;
+const blankAllocRow = (): AllocRow => ({
+  key: String(++allocRowSeq),
+  nombre: "",
+  porcentaje: "",
+  tasa: "",
+  plazo: "",
+});
 
 export function FondoDialog({
   open,
@@ -38,6 +49,15 @@ export function FondoDialog({
   const router = useRouter();
   const isEdit = !!fondo;
   const [confirmDel, setConfirmDel] = useState(false);
+  const [allocRows, setAllocRows] = useState<AllocRow[]>([]);
+  const totalPct = allocRows.reduce((a, r) => a + (Number(r.porcentaje) || 0), 0);
+
+  function updateAllocRow(key: string, patch: Partial<AllocRow>) {
+    setAllocRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+  function removeAllocRow(key: string) {
+    setAllocRows((prev) => prev.filter((r) => r.key !== key));
+  }
 
   return (
     <Sheet
@@ -47,6 +67,20 @@ export function FondoDialog({
     >
       <form
         action={async (fd) => {
+          if (!isEdit && allocRows.length > 0) {
+            const validas = allocRows.filter((r) => r.nombre.trim());
+            fd.set(
+              "asignaciones",
+              JSON.stringify(
+                validas.map((r) => ({
+                  nombre: r.nombre.trim(),
+                  porcentaje: Number(r.porcentaje) || 0,
+                  tasa_retorno_estimada: r.tasa === "" ? null : Number(r.tasa),
+                  plazo_proyeccion_anios: r.plazo === "" ? null : Number(r.plazo),
+                })),
+              ),
+            );
+          }
           await (isEdit ? updateAction : createAction)(fd);
           onClose();
         }}
@@ -95,7 +129,7 @@ export function FondoDialog({
           </Field>
         )}
 
-        {tienePosiciones ? (
+        {tienePosiciones || (!isEdit && allocRows.length > 0) ? (
           <p className="text-xs text-gray-400">{t("fondos.rateMovedToPositions")}</p>
         ) : (
           <>
@@ -123,6 +157,80 @@ export function FondoDialog({
               </Field>
             </div>
           </>
+        )}
+
+        {!isEdit && (
+          <div className="space-y-2 rounded-lg bg-gray-50 p-3">
+            <p className="text-sm font-medium text-gray-700">{t("fondos.positions")}</p>
+            <p className="text-xs text-gray-400">{t("fondos.positionsDesc")}</p>
+            {allocRows.map((r) => (
+              <div key={r.key} className="space-y-2 rounded-lg border border-border bg-white p-2.5">
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder={t("fondos.positionName")}
+                    value={r.nombre}
+                    onChange={(e) => updateAllocRow(r.key, { nombre: e.target.value })}
+                    className="flex-1"
+                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="100"
+                      placeholder="%"
+                      value={r.porcentaje}
+                      onChange={(e) => updateAllocRow(r.key, { porcentaje: e.target.value })}
+                      className="w-16 text-right"
+                    />
+                    <span className="text-xs text-gray-400">%</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeAllocRow(r.key)}
+                    aria-label={t("common.delete")}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-red"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder={t("fondos.estimatedRate")}
+                    value={r.tasa}
+                    onChange={(e) => updateAllocRow(r.key, { tasa: e.target.value })}
+                  />
+                  <Select
+                    value={r.plazo}
+                    onChange={(e) => updateAllocRow(r.key, { plazo: e.target.value })}
+                  >
+                    <option value="">{t("fondos.term")}</option>
+                    {FONDO_PLAZOS.map((p) => (
+                      <option key={p} value={p}>
+                        {p} {t("fondos.years")}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+            ))}
+            {allocRows.length > 0 && (
+              <p className={`text-xs ${totalPct === 100 ? "text-green" : "text-red"}`}>
+                {t("fondos.totalAssigned", { n: totalPct })}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => setAllocRows((prev) => [...prev, blankAllocRow()])}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-sm text-gray-500 hover:border-navy-light hover:text-navy"
+            >
+              <Plus size={15} />
+              {t("fondos.newPosition")}
+            </button>
+          </div>
         )}
 
         <Button type="submit" className="w-full">

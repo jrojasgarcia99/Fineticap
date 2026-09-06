@@ -136,18 +136,71 @@ export async function createFondo(formData: FormData) {
     fondoId = data?.id ?? null;
   }
 
+  // Asignaciones (portafolio) que el usuario armó al crear el fondo — se
+  // insertan todas de una vez, en el mismo orden en que las agregó.
+  type AsignacionInput = {
+    nombre: string;
+    porcentaje: number;
+    tasa_retorno_estimada: number | null;
+    plazo_proyeccion_anios: number | null;
+  };
+  let asignaciones: AsignacionInput[] = [];
+  let asignacionesCreadas: { id: string; porcentaje: number }[] = [];
+  if (fondoId) {
+    try {
+      asignaciones = JSON.parse(String(formData.get("asignaciones") || "[]"));
+    } catch {
+      asignaciones = [];
+    }
+    if (asignaciones.length > 0) {
+      const { data: creadas } = await supabase
+        .from("fondo_posiciones")
+        .insert(
+          asignaciones.map((a, i) => ({
+            fondo_id: fondoId,
+            nombre: a.nombre,
+            porcentaje: a.porcentaje,
+            tasa_retorno_estimada: a.tasa_retorno_estimada,
+            plazo_proyeccion_anios: a.plazo_proyeccion_anios,
+            orden: i,
+          })),
+        )
+        .select("id, porcentaje");
+      asignacionesCreadas = creadas ?? [];
+    }
+  }
+
   if (fondoId && montoInicial > 0) {
     const now = new Date();
-    await supabase.from("fondo_movimientos").insert({
-      fondo_id: fondoId,
-      tipo: "saldo_inicial",
-      monto: montoInicial,
-      moneda,
-      mes: now.getMonth() + 1,
-      anio: now.getFullYear(),
-      descripcion: "Saldo inicial",
-      created_by: user.id,
-    });
+    if (asignacionesCreadas.length > 0) {
+      // El saldo inicial también se reparte por %, para que cada asignación
+      // arranque con su parte correcta desde el día uno.
+      const totalPct = asignacionesCreadas.reduce((a, p) => a + Number(p.porcentaje), 0) || 100;
+      await supabase.from("fondo_movimientos").insert(
+        asignacionesCreadas.map((p) => ({
+          fondo_id: fondoId,
+          posicion_id: p.id,
+          tipo: "saldo_inicial" as const,
+          monto: (montoInicial * Number(p.porcentaje)) / totalPct,
+          moneda,
+          mes: now.getMonth() + 1,
+          anio: now.getFullYear(),
+          descripcion: "Saldo inicial",
+          created_by: user.id,
+        })),
+      );
+    } else {
+      await supabase.from("fondo_movimientos").insert({
+        fondo_id: fondoId,
+        tipo: "saldo_inicial",
+        monto: montoInicial,
+        moneda,
+        mes: now.getMonth() + 1,
+        anio: now.getFullYear(),
+        descripcion: "Saldo inicial",
+        created_by: user.id,
+      });
+    }
   }
   revalidatePath("/patrimonio");
   revalidatePath("/familiar");
