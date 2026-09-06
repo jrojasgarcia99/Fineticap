@@ -88,15 +88,13 @@ function parseFondoFields(formData: FormData) {
   const nombre = String(formData.get("nombre") || "").trim();
   const tipoRaw = String(formData.get("tipo") || "");
   const tipo = (FONDO_TIPOS as string[]).includes(tipoRaw) ? (tipoRaw as FondoTipo) : "ahorro";
-  const porcentaje_ahorro = Number(formData.get("porcentaje_ahorro") || 0);
-  const porcentaje_inversion = Number(formData.get("porcentaje_inversion") || 0);
   const tasaRaw = formData.get("tasa_retorno_estimada");
   const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
   const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
   const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
     ? plazoRaw
     : null;
-  return { nombre, tipo, porcentaje_ahorro, porcentaje_inversion, tasa_retorno_estimada, plazo_proyeccion_anios };
+  return { nombre, tipo, tasa_retorno_estimada, plazo_proyeccion_anios };
 }
 
 export async function createFondo(formData: FormData) {
@@ -105,24 +103,50 @@ export async function createFondo(formData: FormData) {
   if (!fields.nombre) return;
   const moneda = normalizarMoneda(formData.get("moneda"), currency.activas, currency.primaria);
   const isFamily = String(formData.get("scope_type")) === "family";
+  const montoInicial = Number(formData.get("monto_inicial") || 0);
 
+  let fondoId: string | null = null;
   if (isFamily) {
     const fam = await getFamilyBudgetContext({ supabase, user });
     if (!fam) return;
-    await supabase.from("fondos").insert({
-      scope_type: "family",
-      family_budget_id: fam.familyBudget.id,
-      moneda,
-      created_by: user.id,
-      ...fields,
-    });
+    const { data } = await supabase
+      .from("fondos")
+      .insert({
+        scope_type: "family",
+        family_budget_id: fam.familyBudget.id,
+        moneda,
+        created_by: user.id,
+        ...fields,
+      })
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    fondoId = data?.id ?? null;
   } else {
-    await supabase.from("fondos").insert({
-      scope_type: "personal",
-      space_id: space.id,
+    const { data } = await supabase
+      .from("fondos")
+      .insert({
+        scope_type: "personal",
+        space_id: space.id,
+        moneda,
+        created_by: user.id,
+        ...fields,
+      })
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    fondoId = data?.id ?? null;
+  }
+
+  if (fondoId && montoInicial > 0) {
+    const now = new Date();
+    await supabase.from("fondo_movimientos").insert({
+      fondo_id: fondoId,
+      tipo: "saldo_inicial",
+      monto: montoInicial,
       moneda,
+      mes: now.getMonth() + 1,
+      anio: now.getFullYear(),
+      descripcion: "Saldo inicial",
       created_by: user.id,
-      ...fields,
     });
   }
   revalidatePath("/patrimonio");

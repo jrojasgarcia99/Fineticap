@@ -758,7 +758,8 @@ create policy "require aal2 if mfa enrolled" on envelope_movements
 -- ============================================================================
 -- FONDOS — Patrimonio alimentado por Ahorro/Inversión, personal y compartido.
 -- Ver supabase/migrations/2026-09-23_fondos_patrimonio.sql para las notas de
--- diseño completas.
+-- diseño completas, y 2026-09-24_fondos_ajustes.sql (ya reflejado abajo: sin
+-- porcentaje_ahorro/porcentaje_inversion, con el tipo 'saldo_inicial').
 -- ============================================================================
 -- Decisiones acordadas con el usuario (ver tarjeta "patrimonio" del tablero):
 --  - Una línea de budget_items (ahorros/inversion) se distribuye a UN solo
@@ -782,8 +783,6 @@ create table if not exists fondos (
   nombre text not null,
   tipo text not null check (tipo in ('ahorro','inversion','emergencia','gasto_anual')),
   moneda text not null check (moneda in ('CRC','USD')),
-  porcentaje_ahorro numeric not null default 0,
-  porcentaje_inversion numeric not null default 0,
   tasa_retorno_estimada numeric,
   plazo_proyeccion_anios int check (plazo_proyeccion_anios in (10,15,20,25,30)),
   orden int not null default 0,
@@ -810,7 +809,7 @@ create index if not exists fondos_family_idx on fondos (family_budget_id);
 create table if not exists fondo_movimientos (
   id uuid primary key default gen_random_uuid(),
   fondo_id uuid not null references fondos(id) on delete cascade,
-  tipo text not null check (tipo in ('aporte_presupuesto','rendimiento')),
+  tipo text not null check (tipo in ('aporte_presupuesto','rendimiento','saldo_inicial')),
   monto numeric not null,
   moneda text not null check (moneda in ('CRC','USD')),
   anio int not null,

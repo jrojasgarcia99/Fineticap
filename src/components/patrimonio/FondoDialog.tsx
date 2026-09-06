@@ -82,28 +82,11 @@ export function FondoDialog({
           </Field>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("fondos.pctAhorro")}>
-            <Input
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              name="porcentaje_ahorro"
-              defaultValue={fondo?.porcentaje_ahorro ?? 0}
-            />
+        {!isEdit && (
+          <Field label={t("fondos.initialAmount")}>
+            <Input type="number" step="0.01" min="0" name="monto_inicial" placeholder="0" />
           </Field>
-          <Field label={t("fondos.pctInversion")}>
-            <Input
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              name="porcentaje_inversion"
-              defaultValue={fondo?.porcentaje_inversion ?? 0}
-            />
-          </Field>
-        </div>
+        )}
 
         <p className="text-xs text-gray-400">{t("fondos.projectionHint")}</p>
         <div className="grid grid-cols-2 gap-3">

@@ -169,35 +169,65 @@ export default async function FondoDetallePage({
       <Card>
         <CardHeader>
           <CardTitle>{t("fondos.history")}</CardTitle>
+          {movimientos.length > 0 && (
+            <a
+              href={`/api/fondo-xlsx?fondoId=${fondo.id}`}
+              className="text-sm text-navy-light hover:underline"
+            >
+              {t("fondos.exportExcel")}
+            </a>
+          )}
         </CardHeader>
         <CardBody>
           {movimientos.length === 0 ? (
             <p className="text-sm text-gray-400">{t("fondos.noMovements")}</p>
           ) : (
-            <ul className="divide-y divide-border">
-              {movimientos.map((m) => (
-                <li key={m.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                  <div className="min-w-0">
-                    <p className="text-gray-700">
-                      {m.tipo === "rendimiento"
-                        ? m.descripcion || t("fondos.returnGeneric")
-                        : `${MESES[m.mes - 1]} ${m.anio}`}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {m.tipo === "rendimiento" ? t("fondos.returnLabel") : t("fondos.contributionLabel")}
-                      {fondo.scope_type === "family" && m.created_by && (
-                        <> · {nombrePorUsuario.get(m.created_by) || "—"}</>
-                      )}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 font-medium ${m.tipo === "rendimiento" ? "text-gold" : "text-navy"}`}
-                  >
-                    {fmt(Number(m.monto))}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-1">
+              {Array.from(new Set(movimientos.map((m) => m.anio))).map((anio, idx) => {
+                const delAnio = movimientos.filter((m) => m.anio === anio);
+                const totalAnio = delAnio.reduce((a, m) => a + Number(m.monto), 0);
+                return (
+                  <details key={anio} open={idx === 0} className="group">
+                    <summary className="flex cursor-pointer items-center justify-between gap-2 py-2 text-sm font-medium text-navy">
+                      <span>
+                        {anio} <span className="text-gray-400">({delAnio.length})</span>
+                      </span>
+                      <span>{fmt(totalAnio)}</span>
+                    </summary>
+                    <ul className="divide-y divide-border pl-1">
+                      {delAnio.map((m) => (
+                        <li key={m.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                          <div className="min-w-0">
+                            <p className="text-gray-700">
+                              {m.tipo === "rendimiento"
+                                ? m.descripcion || t("fondos.returnGeneric")
+                                : m.tipo === "saldo_inicial"
+                                  ? t("fondos.initialLabel")
+                                  : `${MESES[m.mes - 1]} ${m.anio}`}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {m.tipo === "rendimiento"
+                                ? t("fondos.returnLabel")
+                                : m.tipo === "saldo_inicial"
+                                  ? t("fondos.initialLabel")
+                                  : t("fondos.contributionLabel")}
+                              {fondo.scope_type === "family" && m.created_by && (
+                                <> · {nombrePorUsuario.get(m.created_by) || "—"}</>
+                              )}
+                            </p>
+                          </div>
+                          <span
+                            className={`shrink-0 font-medium ${m.tipo === "rendimiento" ? "text-gold" : "text-navy"}`}
+                          >
+                            {fmt(Number(m.monto))}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                );
+              })}
+            </div>
           )}
         </CardBody>
       </Card>

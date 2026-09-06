@@ -274,8 +274,6 @@ export type Fondo = {
   nombre: string;
   tipo: FondoTipo;
   moneda: Moneda;
-  porcentaje_ahorro: number;
-  porcentaje_inversion: number;
   tasa_retorno_estimada: number | null;
   plazo_proyeccion_anios: number | null;
   orden: number;
@@ -283,7 +281,7 @@ export type Fondo = {
   created_at: string;
 };
 
-export type FondoMovimientoTipo = "aporte_presupuesto" | "rendimiento";
+export type FondoMovimientoTipo = "aporte_presupuesto" | "rendimiento" | "saldo_inicial";
 
 export type FondoMovimiento = {
   id: string;
