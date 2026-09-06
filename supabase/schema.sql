@@ -648,7 +648,7 @@ begin
     v_code := substr(v_code, 1, 5) || '-' || substr(v_code, 6, 5);
     v_codes := array_append(v_codes, v_code);
     insert into public.mfa_recovery_codes (user_id, code_hash)
-      values ((select auth.uid()), crypt(v_code, gen_salt('bf')));
+      values ((select auth.uid()), extensions.crypt(v_code, extensions.gen_salt('bf')));
   end loop;
 
   return v_codes;
@@ -665,7 +665,7 @@ begin
     from public.mfa_recovery_codes
     where user_id = (select auth.uid())
       and used_at is null
-      and code_hash = crypt(p_code, code_hash)
+      and code_hash = extensions.crypt(p_code, code_hash)
     limit 1;
 
   if v_id is null then

@@ -61,7 +61,10 @@ export function MfaCard() {
       );
     }
 
-    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
+    const { data, error } = await supabase.auth.mfa.enroll({
+      factorType: "totp",
+      issuer: "Fineticap",
+    });
     setBusy(false);
     if (error || !data) {
       setError(error?.message ?? t("mfa.errGeneric"));
