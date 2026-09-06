@@ -68,7 +68,14 @@ export function MfaCard() {
       return;
     }
     setFactorId(data.id);
-    setQr(`data:image/svg+xml;utf-8,${encodeURIComponent(data.totp.qr_code)}`);
+    // Según la versión del SDK, qr_code puede venir como SVG crudo (hay que
+    // envolverlo en un data URI) o ya como data URI completo — se detecta.
+    const qrValue = data.totp.qr_code;
+    setQr(
+      qrValue.startsWith("data:")
+        ? qrValue
+        : `data:image/svg+xml;utf-8,${encodeURIComponent(qrValue)}`,
+    );
     setSecret(data.totp.secret);
     setCode("");
     setStep("enrolling");
