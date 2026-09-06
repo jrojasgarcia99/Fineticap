@@ -1,10 +1,13 @@
 import Link from "next/link";
 import {
   getPersonalContext,
+  getFamilyBudgetContext,
   getFamilyRepartoContext,
   rolloverForMe,
   ensurePersonalCategories,
 } from "@/lib/data";
+import { distribuirBudgetItem, quitarDistribucion } from "../patrimonio/actions";
+import type { FondoOption } from "@/components/presupuesto/BudgetRowDialog";
 import { calcularTotales, calcularSemaforos, formatoMoneda, formatoPct } from "@/lib/calculations";
 import { convertirBudgetItems, convertirDeudas } from "@/lib/currency";
 import { tFor } from "@/lib/i18n";
@@ -47,32 +50,57 @@ export default async function PresupuestoPage({
 
   // Ninguna depende de la otra: en paralelo. La siguiente tanda de selects sí
   // depende de que ensurePersonalCategories/rolloverForMe ya hayan escrito.
-  const [, , reparto] = await Promise.all([
+  const [, , reparto, fam] = await Promise.all([
     ensurePersonalCategories({ supabase, space }),
     rolloverForMe(anio, mes),
     getFamilyRepartoContext(currency, { supabase, user }),
+    getFamilyBudgetContext({ supabase, user }),
   ]);
 
-  const [{ data: cats }, { data: items }, { data: deudas }] = await Promise.all([
-    supabase
-      .from("personal_budget_categories")
-      .select("*")
-      .eq("space_id", space.id)
-      .order("orden", { ascending: true }),
-    supabase
-      .from("budget_items")
-      .select("*")
-      .eq("space_id", space.id)
-      .eq("mes", mes)
-      .eq("anio", anio)
-      .order("orden", { ascending: true })
-      .order("created_at", { ascending: true }),
-    supabase.from("deudas").select("*").eq("space_id", space.id),
-  ]);
+  const [{ data: cats }, { data: items }, { data: deudas }, { data: fondosPersonales }] =
+    await Promise.all([
+      supabase
+        .from("personal_budget_categories")
+        .select("*")
+        .eq("space_id", space.id)
+        .order("orden", { ascending: true }),
+      supabase
+        .from("budget_items")
+        .select("*")
+        .eq("space_id", space.id)
+        .eq("mes", mes)
+        .eq("anio", anio)
+        .order("orden", { ascending: true })
+        .order("created_at", { ascending: true }),
+      supabase.from("deudas").select("*").eq("space_id", space.id),
+      supabase.from("fondos").select("id, nombre").eq("space_id", space.id),
+    ]);
+
+  const { data: fondosFamiliares } = fam
+    ? await supabase.from("fondos").select("id, nombre").eq("family_budget_id", fam.familyBudget.id)
+    : { data: null };
 
   const categorias = (cats ?? []) as PersonalBudgetCategory[];
   const budgetItems = (items ?? []) as BudgetItem[];
   const deudasList = (deudas ?? []) as Deuda[];
+
+  const fondosDisponibles: FondoOption[] = [
+    ...(fondosPersonales ?? []).map((f) => ({ id: f.id, nombre: f.nombre, compartido: false })),
+    ...(fondosFamiliares ?? []).map((f) => ({ id: f.id, nombre: f.nombre, compartido: true })),
+  ];
+
+  const ahorroInversionIds = budgetItems
+    .filter((i) => i.categoria === "ahorros" || i.categoria === "inversion")
+    .map((i) => i.id);
+  const { data: movs } = ahorroInversionIds.length
+    ? await supabase
+        .from("fondo_movimientos")
+        .select("budget_item_id, fondo_id")
+        .in("budget_item_id", ahorroInversionIds)
+    : { data: [] as { budget_item_id: string; fondo_id: string }[] };
+  const distribucionMap: Record<string, string> = Object.fromEntries(
+    (movs ?? []).map((m) => [m.budget_item_id, m.fondo_id]),
+  );
 
   const aporteFamiliar = reparto ? reparto.shareFor(mes, anio) : 0;
 
@@ -223,6 +251,10 @@ export default async function PresupuestoPage({
         applyOrder={applyBudgetOrder}
         updateCategoryAction={updatePersonalCategory}
         deleteCategoryAction={deletePersonalCategory}
+        fondosDisponibles={fondosDisponibles}
+        distribucionMap={distribucionMap}
+        distribuirAction={distribuirBudgetItem}
+        quitarDistribucionAction={quitarDistribucion}
       />
 
       <AddCategoryForm action={addPersonalCategory} />

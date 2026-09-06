@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CalendarClock, Repeat, GripVertical } from "lucide-react";
+import { CalendarClock, Repeat, GripVertical, PiggyBank } from "lucide-react";
 import { formatoMoneda } from "@/lib/calculations";
 import { aPrimaria, type CurrencyConfig } from "@/lib/currency";
 import { useT } from "@/components/i18n/I18nProvider";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { BudgetRowDialog } from "./BudgetRowDialog";
+import { BudgetRowDialog, type FondoOption } from "./BudgetRowDialog";
 import type { Moneda } from "@/lib/types";
 
 export type BudgetRowItem = {
@@ -25,11 +25,21 @@ export function EditableBudgetRow({
   currency,
   updateAction,
   deleteAction,
+  categoria,
+  fondosDisponibles,
+  fondoActualId,
+  distribuirAction,
+  quitarDistribucionAction,
 }: {
   item: BudgetRowItem;
   currency: CurrencyConfig;
   updateAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
+  categoria?: string;
+  fondosDisponibles?: FondoOption[];
+  fondoActualId?: string | null;
+  distribuirAction?: (formData: FormData) => void | Promise<void>;
+  quitarDistribucionAction?: (formData: FormData) => void | Promise<void>;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -74,6 +84,14 @@ export function EditableBudgetRow({
               <Repeat size={12} strokeWidth={2.25} />
             </span>
           )}
+          {fondoActualId && (
+            <span
+              className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-navy-light/10 text-navy-light"
+              aria-label={t("fondos.distributedBadge")}
+            >
+              <PiggyBank size={12} strokeWidth={2.25} />
+            </span>
+          )}
           {item.automatico && (
             <span
               className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-gold/15 text-gold"
@@ -101,6 +119,11 @@ export function EditableBudgetRow({
         currency={currency}
         action={updateAction}
         deleteAction={deleteAction}
+        categoria={categoria}
+        fondosDisponibles={fondosDisponibles}
+        fondoActualId={fondoActualId}
+        distribuirAction={distribuirAction}
+        quitarDistribucionAction={quitarDistribucionAction}
       />
     </li>
   );

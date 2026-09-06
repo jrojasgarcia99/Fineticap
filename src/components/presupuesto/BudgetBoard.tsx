@@ -26,6 +26,7 @@ import { ProgressBar } from "@/components/ui/Semaforo";
 import { SEMAFORO_COLOR, type CategoriaTipo, type Semaforo } from "@/lib/types";
 import { formatoMoneda, formatoPct } from "@/lib/calculations";
 import { EditableBudgetRow, type BudgetRowItem } from "@/components/presupuesto/EditableBudgetRow";
+import type { FondoOption } from "@/components/presupuesto/BudgetRowDialog";
 import { CategoryHeader } from "@/components/presupuesto/CategoryHeader";
 import { AddLineForm } from "@/components/presupuesto/AddLineForm";
 import { InfoHint } from "@/components/ui/Tooltip";
@@ -84,6 +85,10 @@ export function BudgetBoard({
   applyOrder,
   updateCategoryAction,
   deleteCategoryAction,
+  fondosDisponibles,
+  distribucionMap,
+  distribuirAction,
+  quitarDistribucionAction,
 }: {
   sections: BudgetSection[];
   currency: CurrencyConfig;
@@ -99,6 +104,10 @@ export function BudgetBoard({
   }) => Promise<{ ok: boolean } | void>;
   updateCategoryAction: (formData: FormData) => void | Promise<void>;
   deleteCategoryAction: (formData: FormData) => void | Promise<void>;
+  fondosDisponibles?: FondoOption[];
+  distribucionMap?: Record<string, string>;
+  distribuirAction?: (formData: FormData) => void | Promise<void>;
+  quitarDistribucionAction?: (formData: FormData) => void | Promise<void>;
 }) {
   const t = useT();
   const [isPending, startTransition] = useTransition();
@@ -250,6 +259,11 @@ export function BudgetBoard({
                         currency={currency}
                         updateAction={updateAction}
                         deleteAction={deleteAction}
+                        categoria={s.categoria}
+                        fondosDisponibles={fondosDisponibles}
+                        fondoActualId={distribucionMap?.[item.id] ?? null}
+                        distribuirAction={distribuirAction}
+                        quitarDistribucionAction={quitarDistribucionAction}
                       />
                     ))}
                     {s.extraLine && (

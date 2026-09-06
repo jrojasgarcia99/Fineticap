@@ -262,6 +262,43 @@ export type EnvelopeMovement = {
   created_at: string;
 };
 
+export type FondoTipo = "ahorro" | "inversion" | "emergencia" | "gasto_anual";
+export const FONDO_TIPOS: FondoTipo[] = ["ahorro", "inversion", "emergencia", "gasto_anual"];
+export const FONDO_PLAZOS = [10, 15, 20, 25, 30] as const;
+
+export type Fondo = {
+  id: string;
+  scope_type: EnvelopeScope;
+  space_id: string | null;
+  family_budget_id: string | null;
+  nombre: string;
+  tipo: FondoTipo;
+  moneda: Moneda;
+  porcentaje_ahorro: number;
+  porcentaje_inversion: number;
+  tasa_retorno_estimada: number | null;
+  plazo_proyeccion_anios: number | null;
+  orden: number;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type FondoMovimientoTipo = "aporte_presupuesto" | "rendimiento";
+
+export type FondoMovimiento = {
+  id: string;
+  fondo_id: string;
+  tipo: FondoMovimientoTipo;
+  monto: number;
+  moneda: Moneda;
+  anio: number;
+  mes: number;
+  budget_item_id: string | null;
+  descripcion: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Semaforo = "verde" | "amarillo" | "naranja" | "rojo";
 
 export const SEMAFORO_COLOR: Record<Semaforo, string> = {

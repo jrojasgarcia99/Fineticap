@@ -439,3 +439,23 @@ export const MESES_LABEL = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
+
+/**
+ * Proyección ILUSTRATIVA de interés compuesto de un fondo — nunca entra al
+ * saldo real ni al patrimonio. Valor futuro de: el saldo de hoy creciendo a
+ * `tasaAnual`, más un aporte mensual constante (el ritmo histórico real del
+ * fondo, no un número inventado) durante `anios`.
+ * FV = P·(1+r)^n + PMT·(((1+r)^n − 1) / r), con r = tasa mensual, n = meses.
+ */
+export function proyeccionInteresCompuesto(
+  saldoActual: number,
+  aporteMensualPromedio: number,
+  tasaAnualPct: number,
+  anios: number,
+): number {
+  const n = anios * 12;
+  const r = tasaAnualPct / 100 / 12;
+  if (r === 0) return saldoActual + aporteMensualPromedio * n;
+  const factor = Math.pow(1 + r, n);
+  return saldoActual * factor + aporteMensualPromedio * ((factor - 1) / r);
+}

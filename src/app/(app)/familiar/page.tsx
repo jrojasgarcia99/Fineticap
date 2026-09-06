@@ -8,7 +8,8 @@ import {
 import { formatoMoneda, formatoPct } from "@/lib/calculations";
 import { aPrimaria } from "@/lib/currency";
 import { tFor, familyCategoryLabel } from "@/lib/i18n";
-import type { FamilyBudgetCategory, FamilyBudgetItem, Moneda } from "@/lib/types";
+import type { FamilyBudgetCategory, FamilyBudgetItem, Moneda, Fondo, FondoMovimiento } from "@/lib/types";
+import { FondoCard } from "@/components/patrimonio/FondoCard";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MonthSwitcher } from "@/components/layout/MonthSwitcher";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -69,7 +70,7 @@ export default async function FamiliarPage({
     getFamilyRepartoContext(currency, { supabase: personalSupabase, user }),
   ]);
 
-  const [{ data: cats }, { data: items }] = await Promise.all([
+  const [{ data: cats }, { data: items }, { data: fondosFam }, { data: roster }] = await Promise.all([
     supabase
       .from("family_budget_categories")
       .select("*")
@@ -83,7 +84,36 @@ export default async function FamiliarPage({
       .eq("anio", anio)
       .order("orden", { ascending: true })
       .order("created_at", { ascending: true }),
+    supabase.from("fondos").select("*").eq("family_budget_id", familyBudget.id).order("orden"),
+    supabase.rpc("family_patrimonio_roster"),
   ]);
+
+  const fondosFamiliares = (fondosFam ?? []) as Fondo[];
+  const fondoIds = fondosFamiliares.map((f) => f.id);
+  const { data: movsFam } = fondoIds.length
+    ? await supabase.from("fondo_movimientos").select("*").in("fondo_id", fondoIds)
+    : { data: [] as FondoMovimiento[] };
+  const movsFamList = (movsFam ?? []) as FondoMovimiento[];
+  const saldoFondoFamiliar = (fondoId: string) =>
+    movsFamList.filter((m) => m.fondo_id === fondoId).reduce((a, m) => a + Number(m.monto), 0);
+  const totalFondosCompartidos = fondosFamiliares.reduce(
+    (a, f) => a + aPrimaria(saldoFondoFamiliar(f.id), f.moneda, currency),
+    0,
+  );
+  const rosterList = (roster ?? []) as {
+    user_id: string;
+    display_name: string;
+    total_crc: number;
+    total_usd: number;
+  }[];
+  const totalFondosPersonales = rosterList.reduce(
+    (a, r) =>
+      a +
+      aPrimaria(Number(r.total_crc), "CRC", currency) +
+      aPrimaria(Number(r.total_usd), "USD", currency),
+    0,
+  );
+  const patrimonioFamiliarTotal = totalFondosCompartidos + totalFondosPersonales;
 
   const categorias = (cats ?? []) as FamilyBudgetCategory[];
   const itemsList = (items ?? []) as FamilyBudgetItem[];
@@ -231,6 +261,65 @@ export default async function FamiliarPage({
               {t("familiar.repartoFormula")}
             </p>
           )}
+        </CardBody>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{t("familiar.patrimonioTitle")}</CardTitle>
+          <span className="text-sm font-semibold text-navy">
+            {formatoMoneda(patrimonioFamiliarTotal, currency.primaria)}
+          </span>
+        </CardHeader>
+        <CardBody>
+          <p className="text-xs text-gray-500 mb-4">{t("familiar.patrimonioDesc")}</p>
+
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {t("familiar.patrimonioPerMember")}
+          </p>
+          <ul className="divide-y divide-border text-sm mb-5">
+            {rosterList.map((r) => (
+              <li key={r.user_id} className="flex items-center justify-between py-2">
+                <span className="font-medium text-gray-700">{r.display_name || "—"}</span>
+                <span className="text-navy">
+                  {formatoMoneda(
+                    aPrimaria(Number(r.total_crc), "CRC", currency) +
+                      aPrimaria(Number(r.total_usd), "USD", currency),
+                    currency.primaria,
+                  )}
+                </span>
+              </li>
+            ))}
+            {rosterList.length === 0 && (
+              <li className="py-2 text-gray-400">{t("familiar.noMembers")}</li>
+            )}
+          </ul>
+
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {t("familiar.sharedFunds")}
+          </p>
+          <div className="space-y-2">
+            {fondosFamiliares.map((f) => (
+              <FondoCard
+                key={f.id}
+                id={f.id}
+                nombre={f.nombre}
+                tipo={f.tipo}
+                moneda={f.moneda}
+                saldo={saldoFondoFamiliar(f.id)}
+                compartido
+              />
+            ))}
+            {fondosFamiliares.length === 0 && (
+              <p className="text-sm text-gray-400">
+                {t("familiar.noSharedFunds")}{" "}
+                <Link href="/patrimonio" className="text-navy-light hover:underline">
+                  {t("nav.patrimonio")}
+                </Link>
+                .
+              </p>
+            )}
+          </div>
         </CardBody>
       </Card>
     </div>
