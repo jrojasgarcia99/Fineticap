@@ -318,13 +318,22 @@ export async function createFondoPosicion(formData: FormData) {
   const fondo_id = String(formData.get("fondo_id") || "");
   const nombre = String(formData.get("nombre") || "").trim();
   if (!fondo_id || !nombre) return;
-  const porcentaje = Number(formData.get("porcentaje") || 0);
   const tasaRaw = formData.get("tasa_retorno_estimada");
   const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
   const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
   const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
     ? plazoRaw
     : null;
+
+  // El % nunca puede hacer que el total del fondo pase de 100 — se topa acá
+  // también, por si el límite del lado del cliente se saltó de alguna forma.
+  const { data: otras } = await supabase
+    .from("fondo_posiciones")
+    .select("porcentaje")
+    .eq("fondo_id", fondo_id);
+  const asignadoOtras = (otras ?? []).reduce((a, p) => a + Number(p.porcentaje), 0);
+  const porcentaje = Math.max(0, Math.min(Number(formData.get("porcentaje") || 0), 100 - asignadoOtras));
+
   await supabase
     .from("fondo_posiciones")
     .insert({ fondo_id, nombre, porcentaje, tasa_retorno_estimada, plazo_proyeccion_anios });
@@ -336,13 +345,29 @@ export async function updateFondoPosicion(formData: FormData) {
   const id = String(formData.get("id") || "");
   if (!id) return;
   const nombre = String(formData.get("nombre") || "").trim();
-  const porcentaje = Number(formData.get("porcentaje") || 0);
   const tasaRaw = formData.get("tasa_retorno_estimada");
   const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
   const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
   const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
     ? plazoRaw
     : null;
+
+  const { data: actual } = await supabase
+    .from("fondo_posiciones")
+    .select("fondo_id")
+    .eq("id", id)
+    .maybeSingle<{ fondo_id: string }>();
+  let porcentaje = Number(formData.get("porcentaje") || 0);
+  if (actual) {
+    const { data: otras } = await supabase
+      .from("fondo_posiciones")
+      .select("porcentaje")
+      .eq("fondo_id", actual.fondo_id)
+      .neq("id", id);
+    const asignadoOtras = (otras ?? []).reduce((a, p) => a + Number(p.porcentaje), 0);
+    porcentaje = Math.max(0, Math.min(porcentaje, 100 - asignadoOtras));
+  }
+
   await supabase
     .from("fondo_posiciones")
     .update({ nombre, porcentaje, tasa_retorno_estimada, plazo_proyeccion_anios })

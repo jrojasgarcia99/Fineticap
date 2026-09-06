@@ -192,6 +192,7 @@ export const es = {
   "fondos.positionDeleteConfirm": "Esto elimina la posición. Los movimientos ya registrados se quedan pero sin posición asignada. ¿Continuar?",
   "fondos.noPosition": "General (sin posición)",
   "fondos.forPosition": "Para",
+  "fondos.pctAvailable": "Disponible: {n}%",
   "xlsx.fondoColFecha": "Fecha",
   "xlsx.fondoColAnio": "Año",
   "xlsx.fondoColMes": "Mes",

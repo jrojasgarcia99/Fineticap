@@ -12,12 +12,16 @@ import { FONDO_PLAZOS, type FondoPosicion } from "@/lib/types";
 export function FondoPosicionDialog({
   fondoId,
   posicion,
+  /** % ya asignado por las DEMÁS posiciones del fondo (sin contar esta) —
+   *  define cuánto queda disponible para esta. */
+  asignadoOtras,
   createAction,
   updateAction,
   deleteAction,
 }: {
   fondoId: string;
   posicion?: FondoPosicion;
+  asignadoOtras: number;
   createAction: (formData: FormData) => void | Promise<void>;
   updateAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
@@ -26,6 +30,8 @@ export function FondoPosicionDialog({
   const isEdit = !!posicion;
   const [open, setOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const disponible = Math.max(0, 100 - asignadoOtras);
+  const [porcentaje, setPorcentaje] = useState(posicion?.porcentaje ?? 0);
 
   return (
     <>
@@ -62,8 +68,19 @@ export function FondoPosicionDialog({
             <Input name="nombre" defaultValue={posicion?.nombre} required autoFocus />
           </Field>
           <Field label={t("fondos.positionPct")}>
-            <Input type="number" step="1" min="0" max="100" name="porcentaje" defaultValue={posicion?.porcentaje ?? 0} />
+            <Input
+              type="number"
+              step="1"
+              min="0"
+              max={disponible}
+              name="porcentaje"
+              value={porcentaje}
+              onChange={(e) => setPorcentaje(Math.min(disponible, Number(e.target.value) || 0))}
+            />
           </Field>
+          <p className="text-xs text-gray-400">
+            {t("fondos.pctAvailable", { n: disponible })}
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("fondos.estimatedRate")}>
               <Input

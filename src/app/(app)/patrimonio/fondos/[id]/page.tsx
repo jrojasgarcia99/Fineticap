@@ -102,6 +102,7 @@ export default async function FondoDetallePage({
   const aporteMensualPromedio = aportePromedio(() => true);
 
   const fmt = (v: number) => formatoMoneda(v, fondo.moneda);
+  const totalPorcentajeAsignado = posiciones.reduce((a, p) => a + Number(p.porcentaje), 0);
 
   // Con posiciones: la proyección del fondo es la suma de la proyección de
   // cada posición (cada una a su propia tasa/plazo). Las que no tienen
@@ -217,6 +218,7 @@ export default async function FondoDetallePage({
                 <FondoPosicionDialog
                   fondoId={fondo.id}
                   posicion={p}
+                  asignadoOtras={totalPorcentajeAsignado - Number(p.porcentaje)}
                   createAction={createFondoPosicion}
                   updateAction={updateFondoPosicion}
                   deleteAction={deleteFondoPosicion}
@@ -226,6 +228,7 @@ export default async function FondoDetallePage({
           ))}
           <FondoPosicionDialog
             fondoId={fondo.id}
+            asignadoOtras={totalPorcentajeAsignado}
             createAction={createFondoPosicion}
             updateAction={updateFondoPosicion}
             deleteAction={deleteFondoPosicion}

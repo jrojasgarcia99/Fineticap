@@ -185,6 +185,7 @@ export const en: Record<keyof typeof es, string> = {
   "fondos.positionDeleteConfirm": "This deletes the position. Already-recorded movements stay but with no position assigned. Continue?",
   "fondos.noPosition": "General (no position)",
   "fondos.forPosition": "For",
+  "fondos.pctAvailable": "Available: {n}%",
   "xlsx.fondoColFecha": "Date",
   "xlsx.fondoColAnio": "Year",
   "xlsx.fondoColMes": "Month",
