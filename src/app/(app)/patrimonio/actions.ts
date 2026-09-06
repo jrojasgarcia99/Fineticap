@@ -174,8 +174,10 @@ export async function deleteFondo(formData: FormData) {
 
 /** Distribuye una línea de Ahorro/Inversión del presupuesto a un fondo. Si el
  *  fondo tiene posiciones (diversificación), reparte el monto entre ellas
- *  (según `overrides`, o proporcional a su % si no se mandó override) — una
- *  fila de movimiento por posición. Sin posiciones, una sola fila como antes. */
+ *  según el % configurado en cada una — una fila de movimiento por posición.
+ *  Ese % solo se cambia editando la posición en el fondo, nunca desde acá
+ *  (una sola fuente de verdad para el reparto). Sin posiciones, una sola
+ *  fila como antes. */
 export async function distribuirBudgetItem(formData: FormData) {
   const { supabase, user } = await ctx();
   const budget_item_id = String(formData.get("budget_item_id") || "");
@@ -200,23 +202,13 @@ export async function distribuirBudgetItem(formData: FormData) {
     .order("orden");
 
   if (posiciones && posiciones.length > 0) {
-    const overridesRaw = String(formData.get("overrides") || "{}");
-    let overrides: Record<string, number> = {};
-    try {
-      overrides = JSON.parse(overridesRaw);
-    } catch {
-      overrides = {};
-    }
     const totalPct = posiciones.reduce((a, p) => a + Number(p.porcentaje), 0) || 100;
     const filas = posiciones.map((p) => ({
       fondo_id,
       budget_item_id,
       posicion_id: p.id,
       tipo: "aporte_presupuesto" as const,
-      monto:
-        overrides[p.id] != null && !Number.isNaN(overrides[p.id])
-          ? overrides[p.id]
-          : (item.monto * Number(p.porcentaje)) / totalPct,
+      monto: (item.monto * Number(p.porcentaje)) / totalPct,
       moneda: item.moneda,
       mes: item.mes,
       anio: item.anio,

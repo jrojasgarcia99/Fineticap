@@ -57,23 +57,9 @@ export function BudgetRowDialog({
   const isEdit = !!item;
   const [confirmDel, setConfirmDel] = useState(false);
   const [selectedFondoId, setSelectedFondoId] = useState("");
-  // Strings, no numbers — así se puede borrar el campo sin que reaparezca un
-  // "0" forzado (ver fondos.pctOverBy / el mismo bug en FondoPosicionDialog).
-  const [pcts, setPcts] = useState<Record<string, string>>({});
   const puedeDistribuir =
     isEdit && (categoria === "ahorros" || categoria === "inversion") && fondosDisponibles;
   const selectedFondo = fondosDisponibles?.find((f) => f.id === selectedFondoId);
-  const totalPct = Object.values(pcts).reduce((a, v) => a + (Number(v) || 0), 0);
-
-  function pickFondo(id: string) {
-    setSelectedFondoId(id);
-    const f = fondosDisponibles?.find((x) => x.id === id);
-    if (f && f.posiciones.length > 0) {
-      setPcts(Object.fromEntries(f.posiciones.map((p) => [p.id, String(p.porcentaje)])));
-    } else {
-      setPcts({});
-    }
-  }
 
   return (
     <Sheet
@@ -170,15 +156,6 @@ export function BudgetRowDialog({
             <form
               action={async (fd) => {
                 fd.set("budget_item_id", item!.id);
-                if (selectedFondo && selectedFondo.posiciones.length > 0 && item) {
-                  const overrides = Object.fromEntries(
-                    selectedFondo.posiciones.map((p) => [
-                      p.id,
-                      (item.monto * (Number(pcts[p.id]) || 0)) / 100,
-                    ]),
-                  );
-                  fd.set("overrides", JSON.stringify(overrides));
-                }
                 await distribuirAction?.(fd);
               }}
               className="space-y-2"
@@ -189,7 +166,7 @@ export function BudgetRowDialog({
                   required
                   className="flex-1"
                   value={selectedFondoId}
-                  onChange={(e) => pickFondo(e.target.value)}
+                  onChange={(e) => setSelectedFondoId(e.target.value)}
                 >
                   <option value="">{t("fondos.selectFund")}</option>
                   {fondosDisponibles!.map((f) => (
@@ -209,36 +186,18 @@ export function BudgetRowDialog({
               {selectedFondo && selectedFondo.posiciones.length > 0 && item && (
                 <div className="space-y-2 rounded-lg bg-gray-50 p-3">
                   <p className="text-xs text-gray-500">{t("fondos.splitHint")}</p>
-                  {selectedFondo.posiciones.map((p) => {
-                    const pct = Number(pcts[p.id]) || 0;
-                    return (
-                      <div key={p.id} className="flex items-center justify-between gap-2">
-                        <label className="text-sm text-gray-700">{p.nombre}</label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            step="1"
-                            min="0"
-                            max="100"
-                            value={pcts[p.id] ?? ""}
-                            onChange={(e) =>
-                              setPcts((prev) => ({ ...prev, [p.id]: e.target.value }))
-                            }
-                            className="w-16 text-right"
-                          />
-                          <span className="text-xs text-gray-400 w-6">%</span>
-                          <span className="w-24 shrink-0 text-right text-xs text-gray-400">
-                            {formatoMoneda((item.monto * pct) / 100, item.moneda)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className={`text-xs ${totalPct === 100 ? "text-green" : "text-red"}`}>
-                    {t("fondos.totalAssigned", { n: totalPct })}
-                  </p>
-                  <Button type="submit" variant="secondary" className="w-full" disabled={totalPct !== 100}>
-                    {t("common.add")}
+                  {selectedFondo.posiciones.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="text-gray-700">
+                        {p.nombre} <span className="text-xs text-gray-400">({p.porcentaje}%)</span>
+                      </span>
+                      <span className="font-medium text-navy">
+                        {formatoMoneda((item.monto * p.porcentaje) / 100, item.moneda)}
+                      </span>
+                    </div>
+                  ))}
+                  <Button type="submit" variant="secondary" className="w-full">
+                    {t("fondos.confirmDistribution")}
                   </Button>
                 </div>
               )}
