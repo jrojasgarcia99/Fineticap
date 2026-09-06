@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Field, Input } from "@/components/ui/Input";
+import { Field } from "@/components/ui/Input";
+import { CodeInput } from "@/components/ui/CodeInput";
 import { useT } from "@/components/i18n/I18nProvider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -190,13 +191,7 @@ export function MfaCard() {
               <span className="select-all font-mono text-xs">{secret}</span>
             </p>
             <Field label={t("mfa.enrollCodeLabel")}>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value.trim())}
-                inputMode="numeric"
-                maxLength={6}
-                autoFocus
-              />
+              <CodeInput onChange={setCode} autoFocus />
             </Field>
             <div className="flex gap-2">
               <Button onClick={confirmEnroll} disabled={busy || !code}>
@@ -245,13 +240,7 @@ export function MfaCard() {
           <div className="space-y-4">
             <p className="text-sm text-gray-500">{t("mfa.disableConfirmDesc")}</p>
             <Field label={t("mfa.enrollCodeLabel")}>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value.trim())}
-                inputMode="numeric"
-                maxLength={6}
-                autoFocus
-              />
+              <CodeInput onChange={setCode} autoFocus />
             </Field>
             <div className="flex gap-2">
               <Button variant="danger" onClick={confirmDisable} disabled={busy || !code}>

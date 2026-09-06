@@ -6,6 +6,7 @@ import { tFor } from "@/lib/i18n";
 import { needsMfaChallenge } from "@/lib/supabase/mfa";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { CodeInput } from "@/components/ui/CodeInput";
 import { Card, CardBody } from "@/components/ui/Card";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { verifyMfaChallenge, useMfaRecoveryCode } from "./actions";
@@ -69,14 +70,7 @@ export default async function MfaChallengePage({
             ) : (
               <form action={verifyMfaChallenge} className="space-y-4">
                 <Field label={t("mfa.codeLabel")}>
-                  <Input
-                    name="code"
-                    required
-                    autoFocus
-                    inputMode="numeric"
-                    maxLength={6}
-                    autoComplete="one-time-code"
-                  />
+                  <CodeInput name="code" autoFocus />
                 </Field>
                 <Button type="submit" className="w-full">
                   {t("mfa.submit")}
