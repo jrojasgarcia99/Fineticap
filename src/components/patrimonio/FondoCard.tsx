@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { formatoMoneda } from "@/lib/calculations";
 import { useT } from "@/components/i18n/I18nProvider";
