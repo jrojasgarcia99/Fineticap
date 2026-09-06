@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -34,6 +35,7 @@ export function FondoDialog({
   tienePosiciones?: boolean;
 }) {
   const t = useT();
+  const router = useRouter();
   const isEdit = !!fondo;
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -148,6 +150,10 @@ export function FondoDialog({
               await deleteAction(fd);
               setConfirmDel(false);
               onClose();
+              // Si se borró desde la propia página de detalle del fondo
+              // (/patrimonio/fondos/[id]), esa ruta ya no existe — hay que
+              // salir de ahí, si no la próxima recarga da 404.
+              router.push("/patrimonio");
             }}
           />
         </div>
