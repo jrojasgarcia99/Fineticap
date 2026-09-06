@@ -679,87 +679,77 @@ $$;
 
 -- Exigir AAL2 a quien tenga un factor TOTP verificado (opt-in). Restrictive:
 -- se combinan con AND sobre las políticas permissive existentes.
+--
+-- IMPORTANTE: la política NO lee auth.mfa_factors directo (el patrón que
+-- documenta Supabase) — el rol `authenticated` no tiene permiso de lectura
+-- sobre esa tabla interna en proyectos actuales (confirmado en
+-- github.com/supabase/supabase/issues/17168), y hacerlo así rompía el acceso
+-- de TODAS las cuentas con un error de permisos disfrazado de "no hay datos".
+-- Se usa en cambio una función security definer (mismo patrón que
+-- owns_space()/is_family_member()), que sí puede leerla. Ver
+-- supabase/migrations/2026-09-21_mfa_aal2_fix.sql para el detalle del incidente.
+create or replace function mfa_user_requires_aal2()
+returns boolean
+language sql security definer set search_path = '' as $$
+  select exists (
+    select 1 from auth.mfa_factors
+    where user_id = (select auth.uid()) and status = 'verified'
+  );
+$$;
+
 create policy "require aal2 if mfa enrolled" on personal_spaces
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on family_budgets
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on family_budget_members
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on family_budget_categories
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on family_budget_items
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on budget_items
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on personal_budget_categories
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on activos
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on pasivos
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on deudas
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on debt_payments
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on payment_methods
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on envelopes
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on envelope_movements
   as restrictive for all to authenticated
-  using (array[(select auth.jwt()->>'aal')] <@ (
-    select case when count(id) > 0 then array['aal2'] else array['aal1','aal2'] end
-    from auth.mfa_factors where (select auth.uid()) = user_id and status = 'verified'));
+  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 -- ============================================================================

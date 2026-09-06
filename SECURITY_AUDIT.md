@@ -101,3 +101,31 @@ errores por el usuario.
 Ninguno para este tema puntual. La verificación manual de aislamiento
 cruzado entre dos cuentas (descrita en el PR/commit correspondiente) sigue
 disponible si en algún momento quieres volver a confirmarla manualmente.
+
+## Adenda 2026-09-20/21 — incidente en producción con las políticas AAL2 de MFA
+
+Al agregar 2FA (tarjeta "mfa"), las 13 políticas RESTRICTIVE que exigen AAL2
+a quien tiene un factor verificado (parte de ese trabajo, no de esta
+auditoría original) **rompieron el acceso normal de todas las cuentas**,
+con o sin MFA activado — mandaban de vuelta a `/onboarding` a cuentas ya
+configuradas. Causa: el patrón oficial de la documentación de Supabase hace
+que la política lea `auth.mfa_factors` directamente, pero el rol
+`authenticated` no tiene permiso de lectura sobre esa tabla interna en
+proyectos actuales de Supabase (confirmado por la comunidad:
+github.com/supabase/supabase/issues/17168) — la consulta fallaba con un
+error de permisos, no con un simple "sin filas", y la app interpretaba ese
+error como cuenta nueva.
+
+**Corregido** reemplazando la lectura directa por una función
+`security definer` (`mfa_user_requires_aal2()`, mismo patrón que
+`owns_space()`/`is_family_member()`), que sí puede leer la tabla interna.
+Probado tabla por tabla en producción antes de reaplicar a las 13. Ver
+`supabase/migrations/2026-09-21_mfa_aal2_fix.sql`.
+
+**Lección para la próxima vez que se copie una plantilla de RLS de la
+documentación oficial de Supabase que referencie una tabla del schema
+`auth`**: verificar primero si el rol `authenticated` tiene GRANT sobre
+esa tabla (`select grantee, privilege_type from information_schema.role_table_grants
+where table_schema = 'auth' and table_name = '...'`) — si no lo tiene,
+envolver el acceso en una función `security definer` desde el principio,
+en vez de aplicar la plantilla tal cual.
