@@ -186,6 +186,8 @@ export const en: Record<keyof typeof es, string> = {
   "fondos.noPosition": "General (no position)",
   "fondos.forPosition": "For",
   "fondos.pctAvailable": "Available: {n}%",
+  "fondos.pctOverBy": "You went over by {n}% — all positions together shouldn't add up to more than 100%.",
+  "fondos.totalAssigned": "Total assigned across positions: {n}%",
   "xlsx.fondoColFecha": "Date",
   "xlsx.fondoColAnio": "Year",
   "xlsx.fondoColMes": "Month",

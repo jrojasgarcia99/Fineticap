@@ -30,8 +30,12 @@ export function FondoPosicionDialog({
   const isEdit = !!posicion;
   const [open, setOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
-  const disponible = Math.max(0, 100 - asignadoOtras);
   const [porcentaje, setPorcentaje] = useState(posicion?.porcentaje ?? 0);
+  // Informativo, no bloquea — si las otras posiciones ya suman de más (datos
+  // previos a esta corrección), forzar un tope acá dejaría sin forma de
+  // arreglarlas. Se avisa, pero se deja escribir cualquier valor.
+  const disponible = 100 - asignadoOtras;
+  const seExcede = porcentaje > disponible;
 
   return (
     <>
@@ -72,14 +76,16 @@ export function FondoPosicionDialog({
               type="number"
               step="1"
               min="0"
-              max={disponible}
+              max="100"
               name="porcentaje"
               value={porcentaje}
-              onChange={(e) => setPorcentaje(Math.min(disponible, Number(e.target.value) || 0))}
+              onChange={(e) => setPorcentaje(Number(e.target.value) || 0)}
             />
           </Field>
-          <p className="text-xs text-gray-400">
-            {t("fondos.pctAvailable", { n: disponible })}
+          <p className={`text-xs ${seExcede ? "text-red" : "text-gray-400"}`}>
+            {seExcede
+              ? t("fondos.pctOverBy", { n: porcentaje - disponible })
+              : t("fondos.pctAvailable", { n: disponible })}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("fondos.estimatedRate")}>

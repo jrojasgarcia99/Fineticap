@@ -195,6 +195,15 @@ export default async function FondoDetallePage({
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>{t("fondos.positions")}</CardTitle>
+          {posiciones.length > 0 && (
+            <span
+              className={`text-sm font-semibold ${
+                totalPorcentajeAsignado === 100 ? "text-green" : "text-red"
+              }`}
+            >
+              {t("fondos.totalAssigned", { n: totalPorcentajeAsignado })}
+            </span>
+          )}
         </CardHeader>
         <CardBody className="space-y-3">
           <p className="text-xs text-gray-400">{t("fondos.positionsDesc")}</p>
