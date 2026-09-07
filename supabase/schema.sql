@@ -769,10 +769,12 @@ create table if not exists fondos (
   space_id uuid references personal_spaces(id) on delete cascade,
   family_budget_id uuid references family_budgets(id) on delete cascade,
   nombre text not null,
-  tipo text not null check (tipo in ('ahorro','inversion','emergencia','gasto_anual')),
+  tipo text not null check (tipo in ('inversion','ahorro','gasto_anual')),
   moneda text not null check (moneda in ('CRC','USD')),
   tasa_retorno_estimada numeric,
   plazo_proyeccion_anios int check (plazo_proyeccion_anios in (10,15,20,25,30)),
+  anios_transcurridos int not null default 0,
+  comision_anual_pct numeric,
   orden int not null default 0,
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
@@ -804,6 +806,8 @@ create table if not exists fondo_posiciones (
   porcentaje numeric not null default 0,
   tasa_retorno_estimada numeric,
   plazo_proyeccion_anios int check (plazo_proyeccion_anios in (10,15,20,25,30)),
+  anios_transcurridos int not null default 0,
+  comision_anual_pct numeric,
   orden int not null default 0,
   created_at timestamptz not null default now()
 );

@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
 import { getPersonalContext, getFamilyBudgetContext } from "@/lib/data";
 import { tFor, mesesLabel } from "@/lib/i18n";
-import { formatoMoneda, proyeccionInteresCompuesto } from "@/lib/calculations";
+import {
+  formatoMoneda,
+  proyeccionInteresCompuesto,
+  tasaNetaDeComision,
+  aniosRestantes as aniosRestantesFn,
+  serieProyeccion,
+} from "@/lib/calculations";
 import type { Fondo, FondoMovimiento, FondoPosicion } from "@/lib/types";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { BackButton } from "@/components/ui/BackButton";
@@ -9,6 +15,7 @@ import { FondoMenu } from "@/components/patrimonio/FondoMenu";
 import { AgregarRendimientoDialog } from "@/components/patrimonio/AgregarRendimientoDialog";
 import { FondoPosicionDialog } from "@/components/patrimonio/FondoPosicionDialog";
 import { DonutChart } from "@/components/patrimonio/DonutChart";
+import { ProjectionChart } from "@/components/patrimonio/ProjectionChart";
 import { MovimientoItem } from "@/components/patrimonio/MovimientoItem";
 import {
   updateFondo,
@@ -109,43 +116,79 @@ export default async function FondoDetallePage({
   const totalPorcentajeAsignado = posiciones.reduce((a, p) => a + Number(p.porcentaje), 0);
 
   // Con posiciones: la proyección del fondo es la suma de la proyección de
-  // cada posición (cada una a su propia tasa/plazo). Las que no tienen
-  // tasa/plazo configurado aportan su saldo actual, sin asumir crecimiento.
-  type FilaProyeccion = { nombre: string; tasa: number; plazo: number; asumido: number; valor: number };
+  // cada posición (cada una a su propia tasa/plazo/comisión/años ya
+  // transcurridos). Las que no tienen tasa/plazo configurado aportan su
+  // saldo actual, sin asumir crecimiento.
+  type FilaProyeccion = {
+    nombre: string;
+    tasaNeta: number;
+    restantes: number;
+    asumido: number;
+    valor: number;
+  };
   let filasProyeccion: FilaProyeccion[] = [];
   let proyeccionTotal: number | null = null;
+  let chartData: Record<string, number>[] = [];
+  let chartSeries: string[] = [];
+
   if (posiciones.length > 0) {
+    const posicionesConTasa = posiciones.filter(
+      (p) => p.tasa_retorno_estimada != null && p.plazo_proyeccion_anios != null,
+    );
     let total = 0;
     for (const p of posiciones) {
       const saldoP = saldoPorPosicion(p.id);
       if (p.tasa_retorno_estimada != null && p.plazo_proyeccion_anios != null) {
         const asumido = aportePromedio((m) => m.posicion_id === p.id);
-        const valor = proyeccionInteresCompuesto(
-          saldoP,
-          asumido,
-          p.tasa_retorno_estimada,
-          p.plazo_proyeccion_anios,
-        );
-        filasProyeccion.push({
-          nombre: p.nombre,
-          tasa: p.tasa_retorno_estimada,
-          plazo: p.plazo_proyeccion_anios,
-          asumido,
-          valor,
-        });
+        const tasaNeta = tasaNetaDeComision(p.tasa_retorno_estimada, p.comision_anual_pct);
+        const restantes = aniosRestantesFn(p.plazo_proyeccion_anios, p.anios_transcurridos);
+        const valor = proyeccionInteresCompuesto(saldoP, asumido, tasaNeta, restantes);
+        filasProyeccion.push({ nombre: p.nombre, tasaNeta, restantes, asumido, valor });
         total += valor;
       } else {
         total += saldoP;
       }
     }
     proyeccionTotal = total;
-  } else if (fondo.tasa_retorno_estimada != null && fondo.plazo_proyeccion_anios != null) {
-    proyeccionTotal = proyeccionInteresCompuesto(
-      saldoTotal,
-      aporteMensualPromedio,
-      fondo.tasa_retorno_estimada,
-      fondo.plazo_proyeccion_anios,
+
+    const maxAnios = Math.max(
+      0,
+      ...posicionesConTasa.map((p) =>
+        aniosRestantesFn(p.plazo_proyeccion_anios!, p.anios_transcurridos),
+      ),
     );
+    if (maxAnios > 0) {
+      chartSeries = posicionesConTasa.length > 1 ? [...posicionesConTasa.map((p) => p.nombre), "Total"] : ["Total"];
+      for (let anio = 0; anio <= maxAnios; anio++) {
+        const punto: Record<string, number> = { anio };
+        let totalAnio = 0;
+        for (const p of posiciones) {
+          const saldoP = saldoPorPosicion(p.id);
+          let valor = saldoP;
+          if (p.tasa_retorno_estimada != null && p.plazo_proyeccion_anios != null) {
+            const asumido = aportePromedio((m) => m.posicion_id === p.id);
+            const tasaNeta = tasaNetaDeComision(p.tasa_retorno_estimada, p.comision_anual_pct);
+            const restantes = aniosRestantesFn(p.plazo_proyeccion_anios, p.anios_transcurridos);
+            valor = proyeccionInteresCompuesto(saldoP, asumido, tasaNeta, Math.min(anio, restantes));
+            punto[p.nombre] = valor;
+          }
+          totalAnio += valor;
+        }
+        punto["Total"] = totalAnio;
+        chartData.push(punto);
+      }
+    }
+  } else if (fondo.tasa_retorno_estimada != null && fondo.plazo_proyeccion_anios != null) {
+    const tasaNeta = tasaNetaDeComision(fondo.tasa_retorno_estimada, fondo.comision_anual_pct);
+    const restantes = aniosRestantesFn(fondo.plazo_proyeccion_anios, fondo.anios_transcurridos);
+    proyeccionTotal = proyeccionInteresCompuesto(saldoTotal, aporteMensualPromedio, tasaNeta, restantes);
+    if (restantes > 0) {
+      chartSeries = ["Total"];
+      chartData = serieProyeccion(saldoTotal, aporteMensualPromedio, tasaNeta, restantes).map((pt) => ({
+        anio: pt.anio,
+        Total: pt.valor,
+      }));
+    }
   }
 
   return (
@@ -276,7 +319,7 @@ export default async function FondoDetallePage({
                     <span className="text-gray-600">
                       {f.nombre}{" "}
                       <span className="text-xs text-gray-400">
-                        ({f.tasa}% · {f.plazo} {t("fondos.years")})
+                        ({f.tasaNeta}% · {f.restantes} {t("fondos.yearsLeft")})
                       </span>
                     </span>
                     <span className="font-medium text-navy">{fmt(f.valor)}</span>
@@ -297,6 +340,8 @@ export default async function FondoDetallePage({
                   <span className="text-gray-500">{t("fondos.term")}</span>
                   <p className="font-medium text-navy">
                     {fondo.plazo_proyeccion_anios} {t("fondos.years")}
+                    {fondo.anios_transcurridos > 0 &&
+                      ` · ${aniosRestantesFn(fondo.plazo_proyeccion_anios!, fondo.anios_transcurridos)} ${t("fondos.yearsLeft")}`}
                   </p>
                 </div>
                 <div>
@@ -307,6 +352,17 @@ export default async function FondoDetallePage({
                   <span className="text-gray-500">{t("fondos.projectedValue")}</span>
                   <p className="text-lg font-semibold text-navy-light">{fmt(proyeccionTotal)}</p>
                 </div>
+              </div>
+            )}
+
+            {chartData.length > 1 && (
+              <div className="mt-4 border-t border-border pt-4">
+                <ProjectionChart
+                  data={chartData}
+                  series={chartSeries}
+                  moneda={fondo.moneda}
+                  yearLabel={t("fondos.year")}
+                />
               </div>
             )}
           </CardBody>

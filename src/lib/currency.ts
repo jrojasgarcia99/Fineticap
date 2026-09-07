@@ -47,6 +47,21 @@ export function aPrimaria(
   return n * tc;
 }
 
+/** La otra moneda activa además de la primaria, si el hogar tiene dos habilitadas. */
+export function secundariaDe(cfg: CurrencyConfig): Moneda | null {
+  return cfg.activas.find((m) => m !== cfg.primaria) ?? null;
+}
+
+/** Convierte un monto ya expresado en la moneda primaria a la secundaria (la
+ *  inversa de `aPrimaria`) — `null` si no hay secundaria activa o tipo de
+ *  cambio configurado. */
+export function aSecundaria(montoPrimaria: number, cfg: CurrencyConfig): number | null {
+  if (!secundariaDe(cfg)) return null;
+  const tc = Number(cfg.tipoCambio || 0);
+  if (!tc || !Number.isFinite(tc)) return null;
+  return montoPrimaria / tc;
+}
+
 /** Copia de las partidas con `monto` ya expresado en la moneda primaria. */
 export function convertirBudgetItems(
   items: BudgetItem[],

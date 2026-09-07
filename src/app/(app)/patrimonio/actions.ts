@@ -82,14 +82,24 @@ export async function deleteActivo(formData: FormData) {
 function parseFondoFields(formData: FormData) {
   const nombre = String(formData.get("nombre") || "").trim();
   const tipoRaw = String(formData.get("tipo") || "");
-  const tipo = (FONDO_TIPOS as string[]).includes(tipoRaw) ? (tipoRaw as FondoTipo) : "ahorro";
+  const tipo = (FONDO_TIPOS as string[]).includes(tipoRaw) ? (tipoRaw as FondoTipo) : "inversion";
   const tasaRaw = formData.get("tasa_retorno_estimada");
   const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
   const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
   const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
     ? plazoRaw
     : null;
-  return { nombre, tipo, tasa_retorno_estimada, plazo_proyeccion_anios };
+  const anios_transcurridos = Math.max(0, Number(formData.get("anios_transcurridos") || 0));
+  const comisionRaw = formData.get("comision_anual_pct");
+  const comision_anual_pct = comisionRaw === null || comisionRaw === "" ? null : Number(comisionRaw);
+  return {
+    nombre,
+    tipo,
+    tasa_retorno_estimada,
+    plazo_proyeccion_anios,
+    anios_transcurridos,
+    comision_anual_pct,
+  };
 }
 
 export async function createFondo(formData: FormData) {
@@ -409,11 +419,8 @@ export async function agregarRendimiento(formData: FormData) {
 // POSICIONES (diversificación dentro de un fondo)
 // ============================================================================
 
-export async function createFondoPosicion(formData: FormData) {
-  const { supabase } = await ctx();
-  const fondo_id = String(formData.get("fondo_id") || "");
+function parsePosicionFields(formData: FormData) {
   const nombre = String(formData.get("nombre") || "").trim();
-  if (!fondo_id || !nombre) return;
   const porcentaje = Number(formData.get("porcentaje") || 0);
   const tasaRaw = formData.get("tasa_retorno_estimada");
   const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
@@ -421,12 +428,28 @@ export async function createFondoPosicion(formData: FormData) {
   const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
     ? plazoRaw
     : null;
+  const anios_transcurridos = Math.max(0, Number(formData.get("anios_transcurridos") || 0));
+  const comisionRaw = formData.get("comision_anual_pct");
+  const comision_anual_pct = comisionRaw === null || comisionRaw === "" ? null : Number(comisionRaw);
+  return {
+    nombre,
+    porcentaje,
+    tasa_retorno_estimada,
+    plazo_proyeccion_anios,
+    anios_transcurridos,
+    comision_anual_pct,
+  };
+}
+
+export async function createFondoPosicion(formData: FormData) {
+  const { supabase } = await ctx();
+  const fondo_id = String(formData.get("fondo_id") || "");
+  const fields = parsePosicionFields(formData);
+  if (!fondo_id || !fields.nombre) return;
   // No se topa acá a la fuerza (100 - las demás): si las demás ya suman de
   // más, un tope forzado no dejaría corregir ninguna. La suma se advierte en
   // pantalla (ver fondos.totalAssigned), pero nunca bloquea guardar.
-  await supabase
-    .from("fondo_posiciones")
-    .insert({ fondo_id, nombre, porcentaje, tasa_retorno_estimada, plazo_proyeccion_anios });
+  await supabase.from("fondo_posiciones").insert({ fondo_id, ...fields });
   revalidatePath("/patrimonio");
 }
 
@@ -434,18 +457,8 @@ export async function updateFondoPosicion(formData: FormData) {
   const { supabase } = await ctx();
   const id = String(formData.get("id") || "");
   if (!id) return;
-  const nombre = String(formData.get("nombre") || "").trim();
-  const porcentaje = Number(formData.get("porcentaje") || 0);
-  const tasaRaw = formData.get("tasa_retorno_estimada");
-  const tasa_retorno_estimada = tasaRaw === null || tasaRaw === "" ? null : Number(tasaRaw);
-  const plazoRaw = Number(formData.get("plazo_proyeccion_anios") || 0);
-  const plazo_proyeccion_anios = (FONDO_PLAZOS as readonly number[]).includes(plazoRaw)
-    ? plazoRaw
-    : null;
-  await supabase
-    .from("fondo_posiciones")
-    .update({ nombre, porcentaje, tasa_retorno_estimada, plazo_proyeccion_anios })
-    .eq("id", id);
+  const fields = parsePosicionFields(formData);
+  await supabase.from("fondo_posiciones").update(fields).eq("id", id);
   revalidatePath("/patrimonio");
 }
 

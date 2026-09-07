@@ -42,16 +42,22 @@ export function ActivosCard({
               ? Object.entries(item.detalles).map(([k, v]) => (k === "tipo" ? t(`activos.opt.${v}`) : v))
               : [];
             return (
-              <li key={item.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate text-gray-700">{item.concepto}</p>
-                  <p className="truncate text-xs text-gray-400">
-                    {t(`activos.cat.${item.categoria}`)}
-                    {detalles.length > 0 && <> · {detalles.join(" · ")}</>}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-gray-600">
+              <li key={item.id} className="text-sm">
+                <ActivoDialog
+                  activo={item}
+                  currency={currency}
+                  createAction={createAction}
+                  updateAction={updateAction}
+                  deleteAction={deleteAction}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-gray-700">{item.concepto}</p>
+                    <p className="truncate text-xs text-gray-400">
+                      {t(`activos.cat.${item.categoria}`)}
+                      {detalles.length > 0 && <> · {detalles.join(" · ")}</>}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-gray-600">
                     {formatoMoneda(enPrimaria, currency.primaria)}
                     {esSecundaria && (
                       <span className="ml-1.5 text-xs text-gray-400">
@@ -59,14 +65,7 @@ export function ActivosCard({
                       </span>
                     )}
                   </span>
-                  <ActivoDialog
-                    activo={item}
-                    currency={currency}
-                    createAction={createAction}
-                    updateAction={updateAction}
-                    deleteAction={deleteAction}
-                  />
-                </div>
+                </ActivoDialog>
               </li>
             );
           })}

@@ -275,8 +275,8 @@ export type EnvelopeMovement = {
   created_at: string;
 };
 
-export type FondoTipo = "ahorro" | "inversion" | "emergencia" | "gasto_anual";
-export const FONDO_TIPOS: FondoTipo[] = ["ahorro", "inversion", "emergencia", "gasto_anual"];
+export type FondoTipo = "inversion" | "ahorro" | "gasto_anual";
+export const FONDO_TIPOS: FondoTipo[] = ["inversion", "ahorro", "gasto_anual"];
 export const FONDO_PLAZOS = [10, 15, 20, 25, 30] as const;
 
 export type Fondo = {
@@ -289,6 +289,13 @@ export type Fondo = {
   moneda: Moneda;
   tasa_retorno_estimada: number | null;
   plazo_proyeccion_anios: number | null;
+  /** Años que ya llevan corriendo la inversión — la proyección solo mira
+   *  hacia adelante los que faltan (plazo - transcurridos), no el plazo
+   *  completo desde cero. */
+  anios_transcurridos: number;
+  /** Comisión/costo anual (seguro, administración) que se resta de la tasa
+   *  bruta antes de proyectar. */
+  comision_anual_pct: number | null;
   orden: number;
   created_by: string | null;
   created_at: string;
@@ -301,6 +308,8 @@ export type FondoPosicion = {
   porcentaje: number;
   tasa_retorno_estimada: number | null;
   plazo_proyeccion_anios: number | null;
+  anios_transcurridos: number;
+  comision_anual_pct: number | null;
   orden: number;
   created_at: string;
 };

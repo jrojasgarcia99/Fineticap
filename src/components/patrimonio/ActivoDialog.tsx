@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Pencil } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Plus } from "lucide-react";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
@@ -18,12 +18,16 @@ export function ActivoDialog({
   createAction,
   updateAction,
   deleteAction,
+  children,
 }: {
   activo?: Activo;
   currency: CurrencyConfig;
   createAction: (formData: FormData) => void | Promise<void>;
   updateAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
+  /** En modo edición: el contenido de la fila, que se vuelve el disparador
+   *  tocable completo (en vez de un ícono de lápiz suelto). */
+  children?: ReactNode;
 }) {
   const t = useT();
   const isEdit = !!activo;
@@ -33,19 +37,24 @@ export function ActivoDialog({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={isEdit ? t("common.edit") : t("common.add")}
-        className={
-          isEdit
-            ? "text-gray-300 transition-colors hover:text-navy"
-            : "flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-sm text-gray-500 hover:border-navy-light hover:text-navy"
-        }
-      >
-        <Plus size={15} />
-        {!isEdit && t("patrimonio.newAsset")}
-      </button>
+      {isEdit ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="-mx-1 flex w-full items-center gap-3 rounded-lg px-1 py-2 text-left hover:bg-gray-50"
+        >
+          {children}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-sm text-gray-500 hover:border-navy-light hover:text-navy"
+        >
+          <Plus size={15} />
+          {t("patrimonio.newAsset")}
+        </button>
+      )}
       <Sheet
         open={open}
         onClose={() => setOpen(false)}

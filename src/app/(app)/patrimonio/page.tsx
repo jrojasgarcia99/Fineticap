@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { getPersonalContext, getFamilyBudgetContext } from "@/lib/data";
 import { calcularPosicionPatrimonial, edadDesde, formatoMoneda } from "@/lib/calculations";
-import { aPrimaria } from "@/lib/currency";
+import { aPrimaria, aSecundaria, secundariaDe } from "@/lib/currency";
 import { tFor } from "@/lib/i18n";
 import type { Activo, Deuda, Fondo, FondoMovimiento } from "@/lib/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
 import { ActivosCard } from "@/components/patrimonio/ActivosCard";
-import { DonutChart } from "@/components/patrimonio/DonutChart";
+import { DonutChart, DONUT_COLORS } from "@/components/patrimonio/DonutChart";
 import { FondosSection, type FondoListItem } from "@/components/patrimonio/FondosSection";
 import {
   addActivo,
@@ -82,6 +82,9 @@ export default async function PatrimonioPage() {
     })),
   ];
 
+  const secundaria = secundariaDe(currency);
+  const patrimonioNetoSecundario = secundaria ? aSecundaria(patrimonioNeto, currency) : null;
+
   const salarioAnual = Number(space.salario_mensual) * 12;
   const edad = edadDesde(space.fecha_nacimiento);
   const posicion = calcularPosicionPatrimonial(salarioAnual, edad, patrimonioNeto);
@@ -112,6 +115,11 @@ export default async function PatrimonioPage() {
         <Card className="p-4 bg-navy">
           <p className="text-xs text-white/60 uppercase">{t("patrimonio.netWorth")}</p>
           <p className="text-xl font-semibold text-white">{fmt(patrimonioNeto)}</p>
+          {secundaria && patrimonioNetoSecundario != null && (
+            <p className="text-xs text-white/50">
+              {formatoMoneda(patrimonioNetoSecundario, secundaria)}
+            </p>
+          )}
         </Card>
       </div>
 
@@ -131,22 +139,50 @@ export default async function PatrimonioPage() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>{t("patrimonio.compositionTitle")}</CardTitle>
+            <span className="text-sm font-semibold text-navy">{fmt(totalFondos + totalActivos)}</span>
           </CardHeader>
-          <CardBody className="flex flex-wrap items-center gap-6">
-            <DonutChart data={composicion} moneda={currency.primaria} />
-            <ul className="min-w-[10rem] flex-1 space-y-2">
-              {composicion.map((c) => (
-                <li key={c.nombre} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-gray-600">{c.nombre}</span>
-                  <span className="font-medium text-navy">
-                    {fmt(c.valor)}{" "}
-                    <span className="text-xs text-gray-400">
-                      ({Math.round((c.valor / (patrimonioNeto + totalPasivos || 1)) * 100)}%)
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <CardBody>
+            <div className="flex flex-wrap items-center gap-8">
+              <DonutChart data={composicion} moneda={currency.primaria} size={200} />
+              <ul className="min-w-[14rem] flex-1 space-y-3">
+                {composicion.map((c, i) => {
+                  const pct = (c.valor / (totalFondos + totalActivos || 1)) * 100;
+                  return (
+                    <li key={c.nombre}>
+                      <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                        <span className="flex items-center gap-2 text-gray-600">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                          />
+                          {c.nombre}
+                        </span>
+                        <span className="font-medium text-navy">
+                          {fmt(c.valor)} <span className="text-xs text-gray-400">({Math.round(pct)}%)</span>
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-gray-100">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${pct}%`, backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-sm">
+              <span className="text-gray-500">
+                {t("patrimonio.assets")} + {t("fondos.title")}: <strong className="text-navy">{fmt(totalFondos + totalActivos)}</strong>
+              </span>
+              <span className="text-gray-500">
+                {t("patrimonio.totalLiabilities")}: <strong className="text-red">-{fmt(totalPasivos)}</strong>
+              </span>
+              <span className="text-gray-700">
+                {t("patrimonio.netWorth")}: <strong className="text-navy">{fmt(patrimonioNeto)}</strong>
+              </span>
+            </div>
           </CardBody>
         </Card>
       )}

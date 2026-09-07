@@ -96,7 +96,7 @@ export function FondoDialog({
         </Field>
 
         <Field label={t("fondos.type")}>
-          <Select name="tipo" defaultValue={fondo?.tipo ?? "ahorro"} required>
+          <Select name="tipo" defaultValue={fondo?.tipo ?? "inversion"} required>
             {FONDO_TIPOS.map((tp) => (
               <option key={tp} value={tp}>
                 {t(`fondos.type.${tp}`)}
@@ -156,6 +156,28 @@ export function FondoDialog({
                     </option>
                   ))}
                 </Select>
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("fondos.yearsElapsed")}>
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  name="anios_transcurridos"
+                  defaultValue={fondo?.anios_transcurridos || ""}
+                  placeholder="0"
+                />
+              </Field>
+              <Field label={t("fondos.annualFee")}>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  name="comision_anual_pct"
+                  defaultValue={fondo?.comision_anual_pct ?? ""}
+                  placeholder="0"
+                />
               </Field>
             </div>
           </>

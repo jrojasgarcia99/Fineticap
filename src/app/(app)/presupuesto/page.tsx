@@ -102,18 +102,35 @@ export default async function PresupuestoPage({
     posicionesPorFondo.set(p.fondo_id, arr);
   }
 
+  // Si el fondo ya tiene un saldo inicial cargado este mismo mes (típicamente
+  // al crearlo, con "monto ya ahorrado"), distribuir otra línea del
+  // presupuesto de este mes al mismo fondo podría estar duplicando ese
+  // aporte — se avisa antes de confirmar (ver fondos.alreadyHasInitialThisMonth).
+  const { data: saldosInicialesMes } = todosFondosIds.length
+    ? await supabase
+        .from("fondo_movimientos")
+        .select("fondo_id")
+        .eq("tipo", "saldo_inicial")
+        .eq("mes", mes)
+        .eq("anio", anio)
+        .in("fondo_id", todosFondosIds)
+    : { data: [] as { fondo_id: string }[] };
+  const fondosConSaldoInicialEsteMes = new Set((saldosInicialesMes ?? []).map((m) => m.fondo_id));
+
   const fondosDisponibles: FondoOption[] = [
     ...(fondosPersonales ?? []).map((f) => ({
       id: f.id,
       nombre: f.nombre,
       compartido: false,
       posiciones: posicionesPorFondo.get(f.id) ?? [],
+      tieneSaldoInicialEsteMes: fondosConSaldoInicialEsteMes.has(f.id),
     })),
     ...(fondosFamiliares ?? []).map((f) => ({
       id: f.id,
       nombre: f.nombre,
       compartido: true,
       posiciones: posicionesPorFondo.get(f.id) ?? [],
+      tieneSaldoInicialEsteMes: fondosConSaldoInicialEsteMes.has(f.id),
     })),
   ];
 

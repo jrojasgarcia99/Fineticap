@@ -459,3 +459,44 @@ export function proyeccionInteresCompuesto(
   const factor = Math.pow(1 + r, n);
   return saldoActual * factor + aporteMensualPromedio * ((factor - 1) / r);
 }
+
+/** La comisión/costo anual (seguro, administración) se resta directo de la
+ *  tasa bruta — es una simplificación estándar para una proyección
+ *  ilustrativa, no una simulación exacta de cuándo se cobra cada cargo. */
+export function tasaNetaDeComision(
+  tasaAnualBrutaPct: number,
+  comisionAnualPct: number | null | undefined,
+): number {
+  return Math.max(0, tasaAnualBrutaPct - Number(comisionAnualPct || 0));
+}
+
+/** Años que le quedan a una inversión de `plazoAnios` si ya lleva
+ *  `aniosTranscurridos` corriendo — nunca negativo. */
+export function aniosRestantes(
+  plazoAnios: number,
+  aniosTranscurridos: number | null | undefined,
+): number {
+  return Math.max(0, plazoAnios - Number(aniosTranscurridos || 0));
+}
+
+/**
+ * Serie año a año de la proyección (para graficarla) — un punto en año 0
+ * (el saldo de hoy) y uno por cada año hasta `aniosRestantes`. Cada punto se
+ * calcula desde cero con `proyeccionInteresCompuesto` (no acumulando iteración
+ * a iteración) para que sea exacto en cualquier año, no solo el final.
+ */
+export function serieProyeccion(
+  saldoActual: number,
+  aporteMensualPromedio: number,
+  tasaAnualNetaPct: number,
+  aniosRestantes: number,
+): { anio: number; valor: number }[] {
+  const puntos: { anio: number; valor: number }[] = [];
+  for (let a = 0; a <= aniosRestantes; a++) {
+    puntos.push({
+      anio: a,
+      valor: proyeccionInteresCompuesto(saldoActual, aporteMensualPromedio, tasaAnualNetaPct, a),
+    });
+  }
+  return puntos;
+}

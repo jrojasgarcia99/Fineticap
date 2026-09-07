@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Repeat, CalendarClock } from "lucide-react";
 import { Field, Input, Select } from "@/components/ui/Input";
 import { MontoConMoneda } from "@/components/ui/MontoConMoneda";
@@ -17,6 +17,10 @@ export type FondoOption = {
   nombre: string;
   compartido: boolean;
   posiciones: { id: string; nombre: string; porcentaje: number }[];
+  /** Ya tiene un saldo inicial cargado este mismo mes (típicamente al crear
+   *  el fondo) — distribuir otra línea de este mes ahí podría duplicar ese
+   *  aporte, así que se confirma antes de guardar. */
+  tieneSaldoInicialEsteMes: boolean;
 };
 
 /**
@@ -57,9 +61,21 @@ export function BudgetRowDialog({
   const isEdit = !!item;
   const [confirmDel, setConfirmDel] = useState(false);
   const [selectedFondoId, setSelectedFondoId] = useState("");
+  const [confirmSaldoInicial, setConfirmSaldoInicial] = useState(false);
+  const pendingDistribucion = useRef<FormData | null>(null);
   const puedeDistribuir =
     isEdit && (categoria === "ahorros" || categoria === "inversion") && fondosDisponibles;
   const selectedFondo = fondosDisponibles?.find((f) => f.id === selectedFondoId);
+
+  async function handleDistribuir(fd: FormData) {
+    fd.set("budget_item_id", item!.id);
+    if (selectedFondo?.tieneSaldoInicialEsteMes) {
+      pendingDistribucion.current = fd;
+      setConfirmSaldoInicial(true);
+      return;
+    }
+    await distribuirAction?.(fd);
+  }
 
   return (
     <Sheet
@@ -153,13 +169,7 @@ export function BudgetRowDialog({
               </button>
             </div>
           ) : (
-            <form
-              action={async (fd) => {
-                fd.set("budget_item_id", item!.id);
-                await distribuirAction?.(fd);
-              }}
-              className="space-y-2"
-            >
+            <form action={handleDistribuir} className="space-y-2">
               <div className="flex items-center gap-2">
                 <Select
                   name="fondo_id"
@@ -205,6 +215,23 @@ export function BudgetRowDialog({
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmSaldoInicial}
+        title={t("fondos.distributeTitle")}
+        message={t("fondos.alreadyHasInitialThisMonth")}
+        confirmLabel={t("common.add")}
+        danger={false}
+        onCancel={() => {
+          setConfirmSaldoInicial(false);
+          pendingDistribucion.current = null;
+        }}
+        onConfirm={async () => {
+          if (pendingDistribucion.current) await distribuirAction?.(pendingDistribucion.current);
+          setConfirmSaldoInicial(false);
+          pendingDistribucion.current = null;
+        }}
+      />
 
       {isEdit && deleteAction && !fondoActualId && (
         <div className="border-t border-border p-5 pt-4">

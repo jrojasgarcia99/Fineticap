@@ -116,6 +116,28 @@ export function FondoPosicionDialog({
               </Select>
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t("fondos.yearsElapsed")}>
+              <Input
+                type="number"
+                step="1"
+                min="0"
+                name="anios_transcurridos"
+                defaultValue={posicion?.anios_transcurridos || ""}
+                placeholder="0"
+              />
+            </Field>
+            <Field label={t("fondos.annualFee")}>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                name="comision_anual_pct"
+                defaultValue={posicion?.comision_anual_pct ?? ""}
+                placeholder="0"
+              />
+            </Field>
+          </div>
           <Button type="submit" className="w-full">
             {isEdit ? t("common.save") : t("common.add")}
           </Button>

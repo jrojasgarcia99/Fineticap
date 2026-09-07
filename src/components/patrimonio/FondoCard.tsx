@@ -7,9 +7,8 @@ import type { FondoTipo } from "@/lib/types";
 import type { Moneda } from "@/lib/types";
 
 const TIPO_COLOR: Record<FondoTipo, string> = {
-  ahorro: "bg-green/10 text-green",
   inversion: "bg-gold/15 text-gold",
-  emergencia: "bg-red/10 text-red",
+  ahorro: "bg-green/10 text-green",
   gasto_anual: "bg-navy/10 text-navy",
 };
 
