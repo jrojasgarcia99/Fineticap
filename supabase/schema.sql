@@ -386,7 +386,9 @@ create policy "own debt payments - delete" on debt_payments for delete using (ow
 create index if not exists debt_payments_space_idx on debt_payments (space_id, anio, mes);
 
 -- rollover_recurring / rollover_debts(space,anio,mes) / run_monthly_rollover /
--- rollover_for_me: ver supabase/migrations/2026-09-03_* y 2026-09-04_*. En una
+-- rollover_for_me: ver supabase/migrations/2026-09-03_*, 2026-09-04_* y
+-- 2026-09-06c_* (esta última reemplaza rollover_recurring para que también
+-- arrastre la distribución a fondos de las líneas recurrentes). En una
 -- instalación nueva, pegá esos archivos tras este schema.
 
 -- Cron (requiere activar la extensión pg_cron en el panel de Supabase):

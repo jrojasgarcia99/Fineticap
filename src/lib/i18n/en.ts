@@ -183,7 +183,7 @@ export const en: Record<keyof typeof es, string> = {
   "fondos.exportExcel": "Export to Excel",
   "fondos.splitHint": "Based on the % set on the fund.",
   "fondos.confirmDistribution": "Confirm distribution",
-  "fondos.alreadyHasInitialThisMonth": "This fund already has an initial balance loaded this same month — if you already included this contribution there, adding it too would double it. Add it anyway?",
+  "fondos.alreadyHasInitialThisMonth": "This fund already has an initial balance loaded this same month. If that balance already includes this contribution, adding it again would duplicate it. Add it anyway?",
   "fondos.positions": "Diversification",
   "fondos.newPosition": "New diversification",
   "fondos.editPosition": "Edit diversification",

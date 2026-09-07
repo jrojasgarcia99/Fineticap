@@ -139,7 +139,6 @@ export default async function PatrimonioPage() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>{t("patrimonio.compositionTitle")}</CardTitle>
-            <span className="text-sm font-semibold text-navy">{fmt(totalFondos + totalActivos)}</span>
           </CardHeader>
           <CardBody>
             <div className="flex flex-wrap items-center gap-8">
@@ -177,7 +176,7 @@ export default async function PatrimonioPage() {
                 {t("patrimonio.assets")} + {t("fondos.title")}: <strong className="text-navy">{fmt(totalFondos + totalActivos)}</strong>
               </span>
               <span className="text-gray-500">
-                {t("patrimonio.totalLiabilities")}: <strong className="text-red">-{fmt(totalPasivos)}</strong>
+                {t("patrimonio.totalLiabilities")}: <strong className="text-red">{fmt(totalPasivos)}</strong>
               </span>
               <span className="text-gray-700">
                 {t("patrimonio.netWorth")}: <strong className="text-navy">{fmt(patrimonioNeto)}</strong>

@@ -190,7 +190,7 @@ export const es = {
   "fondos.exportExcel": "Exportar a Excel",
   "fondos.splitHint": "Según el % configurado en el fondo.",
   "fondos.confirmDistribution": "Confirmar distribución",
-  "fondos.alreadyHasInitialThisMonth": "Este fondo ya tiene un saldo inicial cargado este mismo mes — si ya incluiste este aporte ahí, agregarlo también lo duplicaría. ¿Agregarlo de todos modos?",
+  "fondos.alreadyHasInitialThisMonth": "Este fondo ya tiene un saldo inicial cargado este mismo mes. Si ese saldo ya incluye este aporte, agregarlo de nuevo lo duplicaría. ¿Querés agregarlo de todos modos?",
   "fondos.positions": "Diversificación",
   "fondos.newPosition": "Nueva diversificación",
   "fondos.editPosition": "Editar diversificación",
