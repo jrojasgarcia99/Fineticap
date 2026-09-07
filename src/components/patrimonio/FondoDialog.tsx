@@ -7,16 +7,19 @@ import { Field, Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DiversificacionNombreField } from "@/components/patrimonio/DiversificacionNombreField";
 import { useT } from "@/components/i18n/I18nProvider";
 import { FONDO_TIPOS, FONDO_PLAZOS, type Fondo } from "@/lib/types";
 import type { CurrencyConfig } from "@/lib/currency";
 
 type AllocRow = { key: string; nombre: string; porcentaje: string; tasa: string; plazo: string };
 let allocRowSeq = 0;
-const blankAllocRow = (): AllocRow => ({
+/** El % sugerido para una fila nueva es todo lo que queda libre — 100% en la
+ *  primera, lo que sobre después de las anteriores en las siguientes. */
+const blankAllocRow = (totalAsignadoPrevio: number): AllocRow => ({
   key: String(++allocRowSeq),
   nombre: "",
-  porcentaje: "",
+  porcentaje: String(Math.max(0, 100 - totalAsignadoPrevio)),
   tasa: "",
   plazo: "",
 });
@@ -133,7 +136,6 @@ export function FondoDialog({
           <p className="text-xs text-gray-400">{t("fondos.rateMovedToPositions")}</p>
         ) : (
           <>
-            <p className="text-xs text-gray-400">{t("fondos.projectionHint")}</p>
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("fondos.estimatedRate")}>
                 <Input
@@ -162,16 +164,15 @@ export function FondoDialog({
         {!isEdit && (
           <div className="space-y-2 rounded-lg bg-gray-50 p-3">
             <p className="text-sm font-medium text-gray-700">{t("fondos.positions")}</p>
-            <p className="text-xs text-gray-400">{t("fondos.positionsDesc")}</p>
             {allocRows.map((r) => (
               <div key={r.key} className="space-y-2 rounded-lg border border-border bg-white p-2.5">
-                <div className="flex items-center gap-2">
-                  <Input
-                    placeholder={t("fondos.positionName")}
-                    value={r.nombre}
-                    onChange={(e) => updateAllocRow(r.key, { nombre: e.target.value })}
-                    className="flex-1"
-                  />
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <DiversificacionNombreField
+                      value={r.nombre}
+                      onChange={(v) => updateAllocRow(r.key, { nombre: v })}
+                    />
+                  </div>
                   <div className="flex items-center gap-1">
                     <Input
                       type="number"
@@ -224,7 +225,7 @@ export function FondoDialog({
             )}
             <button
               type="button"
-              onClick={() => setAllocRows((prev) => [...prev, blankAllocRow()])}
+              onClick={() => setAllocRows((prev) => [...prev, blankAllocRow(totalPct)])}
               className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2 text-sm text-gray-500 hover:border-navy-light hover:text-navy"
             >
               <Plus size={15} />

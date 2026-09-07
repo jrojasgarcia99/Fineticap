@@ -207,7 +207,6 @@ export default async function FondoDetallePage({
           )}
         </CardHeader>
         <CardBody className="space-y-3">
-          <p className="text-xs text-gray-400">{t("fondos.positionsDesc")}</p>
           {posiciones.map((p) => (
             <div
               key={p.id}

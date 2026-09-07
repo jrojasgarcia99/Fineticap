@@ -6,6 +6,7 @@ import { Field, Input, Select } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Sheet } from "@/components/ui/Sheet";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { DiversificacionNombreField } from "@/components/patrimonio/DiversificacionNombreField";
 import { useT } from "@/components/i18n/I18nProvider";
 import { FONDO_PLAZOS, type FondoPosicion } from "@/lib/types";
 
@@ -31,8 +32,11 @@ export function FondoPosicionDialog({
   const [open, setOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   // String, no number — así se puede borrar el campo sin que reaparezca un
-  // "0" forzado delante de lo que se escriba después.
-  const [porcentajeStr, setPorcentajeStr] = useState(String(posicion?.porcentaje ?? ""));
+  // "0" forzado delante de lo que se escriba después. Al agregar una nueva
+  // (no al editar una ya existente), se sugiere todo el % que queda libre.
+  const [porcentajeStr, setPorcentajeStr] = useState(() =>
+    isEdit ? String(posicion!.porcentaje) : String(Math.max(0, 100 - asignadoOtras)),
+  );
   const porcentaje = Number(porcentajeStr) || 0;
   // Informativo, no bloquea — si las otras posiciones ya suman de más (datos
   // previos a esta corrección), forzar un tope acá dejaría sin forma de
@@ -72,7 +76,7 @@ export function FondoPosicionDialog({
             <input type="hidden" name="fondo_id" value={fondoId} />
           )}
           <Field label={t("fondos.positionName")}>
-            <Input name="nombre" defaultValue={posicion?.nombre} required autoFocus />
+            <DiversificacionNombreField name="nombre" defaultValue={posicion?.nombre} required />
           </Field>
           <Field label={t("fondos.positionPct")}>
             <Input
