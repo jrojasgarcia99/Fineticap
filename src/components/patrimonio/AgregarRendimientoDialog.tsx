@@ -45,7 +45,7 @@ export function AgregarRendimientoDialog({
           {posiciones && posiciones.length > 0 && (
             <Field label={t("fondos.forPosition")}>
               <Select name="posicion_id" defaultValue="">
-                <option value="">{t("fondos.noPosition")}</option>
+                <option value="">{t("fondos.splitByPct")}</option>
                 {posiciones.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.nombre}

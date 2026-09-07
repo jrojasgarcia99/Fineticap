@@ -175,15 +175,10 @@ create table if not exists activos (
   concepto text not null,
   valor numeric not null default 0,
   moneda text not null default 'CRC' check (moneda in ('CRC','USD')),
-  created_at timestamptz not null default now()
-);
-
-create table if not exists pasivos (
-  id uuid primary key default gen_random_uuid(),
-  space_id uuid not null references personal_spaces(id) on delete cascade,
-  concepto text not null,
-  valor numeric not null default 0,
-  moneda text not null default 'CRC' check (moneda in ('CRC','USD')),
+  categoria text not null default 'otro' check (categoria in (
+    'efectivo_bancos','inversion_otra','bienes_raices','vehiculo','negocio_propio','objetos_valor','otro'
+  )),
+  detalles jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -212,7 +207,6 @@ alter table family_budget_categories enable row level security;
 alter table family_budget_items      enable row level security;
 alter table budget_items             enable row level security;
 alter table activos                  enable row level security;
-alter table pasivos                  enable row level security;
 alter table deudas                   enable row level security;
 
 create or replace function owns_space(s_id uuid)
@@ -269,8 +263,6 @@ create policy "own personal space - delete" on personal_spaces for delete using 
 create policy "own budget items" on budget_items for all
   using (owns_space(space_id)) with check (owns_space(space_id));
 create policy "own activos" on activos for all
-  using (owns_space(space_id)) with check (owns_space(space_id));
-create policy "own pasivos" on pasivos for all
   using (owns_space(space_id)) with check (owns_space(space_id));
 create policy "own deudas" on deudas for all
   using (owns_space(space_id)) with check (owns_space(space_id));
@@ -592,7 +584,7 @@ revoke all on table
   personal_spaces,
   family_budgets, family_budget_members, family_budget_categories, family_budget_items,
   budget_items, personal_budget_categories,
-  activos, pasivos, deudas, debt_payments,
+  activos, deudas, debt_payments,
   payment_methods, envelopes, envelope_movements,
   assistant_usage, rollover_log
 from anon;
@@ -726,10 +718,6 @@ create policy "require aal2 if mfa enrolled" on personal_budget_categories
   using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 
 create policy "require aal2 if mfa enrolled" on activos
-  as restrictive for all to authenticated
-  using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
-
-create policy "require aal2 if mfa enrolled" on pasivos
   as restrictive for all to authenticated
   using (not mfa_user_requires_aal2() or (select auth.jwt()->>'aal') = 'aal2');
 

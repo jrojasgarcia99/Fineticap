@@ -279,6 +279,42 @@ export async function getFamilyBudgetContext(ctx?: {
 }
 
 /**
+ * Saldo total de todos los fondos de inversión/ahorro de una cuenta (los
+ * personales, y los familiares compartidos si aplica) — es una suma de sus
+ * movimientos, igual que en la página de detalle de cada fondo. Centralizado
+ * acá porque el patrimonio neto se muestra en varias páginas (Dashboard,
+ * Patrimonio, el asistente IA) y todas deben coincidir.
+ */
+export async function getTotalFondos(ctx: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  space: { id: string };
+  familyBudgetId?: string | null;
+  currency: CurrencyConfig;
+}): Promise<number> {
+  const { supabase, space, familyBudgetId, currency } = ctx;
+  const queries = [supabase.from("fondos").select("id, moneda").eq("space_id", space.id)];
+  if (familyBudgetId) {
+    queries.push(supabase.from("fondos").select("id, moneda").eq("family_budget_id", familyBudgetId));
+  }
+  const results = await Promise.all(queries);
+  const fondosList = results.flatMap((r) => (r.data ?? []) as { id: string; moneda: Moneda }[]);
+  if (fondosList.length === 0) return 0;
+
+  const { data: movimientos } = await supabase
+    .from("fondo_movimientos")
+    .select("fondo_id, monto")
+    .in(
+      "fondo_id",
+      fondosList.map((f) => f.id),
+    );
+  const monedaPorFondo = new Map(fondosList.map((f) => [f.id, f.moneda]));
+  return ((movimientos ?? []) as { fondo_id: string; monto: number }[]).reduce(
+    (a, m) => a + aPrimaria(Number(m.monto), monedaPorFondo.get(m.fondo_id) ?? currency.primaria, currency),
+    0,
+  );
+}
+
+/**
  * Reparto proporcional del Presupuesto Familiar. El "peso" de cada miembro para
  * un mes es su monto fijo (salario_fuente = 'fijo') o su Ingreso Disponible de
  * ese mes (salario_fuente = 'disponible', por defecto).

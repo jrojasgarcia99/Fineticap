@@ -159,21 +159,34 @@ export type BudgetItem = {
   created_at: string;
 };
 
+export type ActivoCategoria =
+  | "efectivo_bancos"
+  | "inversion_otra"
+  | "bienes_raices"
+  | "vehiculo"
+  | "negocio_propio"
+  | "objetos_valor"
+  | "otro";
+export const ACTIVO_CATEGORIAS: ActivoCategoria[] = [
+  "efectivo_bancos",
+  "inversion_otra",
+  "bienes_raices",
+  "vehiculo",
+  "negocio_propio",
+  "objetos_valor",
+  "otro",
+];
+
 export type Activo = {
   id: string;
   space_id: string;
   concepto: string;
   valor: number;
   moneda: Moneda;
-  created_at: string;
-};
-
-export type Pasivo = {
-  id: string;
-  space_id: string;
-  concepto: string;
-  valor: number;
-  moneda: Moneda;
+  categoria: ActivoCategoria;
+  /** Detalles opcionales, distintos según la categoría (p. ej. tipo de
+   *  inmueble, marca/modelo de vehículo) — pares clave/valor libres. */
+  detalles: Record<string, string> | null;
   created_at: string;
 };
 

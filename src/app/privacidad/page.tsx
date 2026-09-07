@@ -81,9 +81,9 @@ function ContentEs() {
           foto si elegís subir una.
         </li>
         <li>
-          <strong>Datos financieros que vos ingresás:</strong> presupuesto, deudas, activos y
-          pasivos, sobres de ahorro y sus movimientos, salario, tipo de cambio, categorías y
-          métodos de pago.
+          <strong>Datos financieros que vos ingresás:</strong> presupuesto, deudas, activos,
+          fondos de inversión/ahorro y sus movimientos, sobres de ahorro y sus movimientos,
+          salario, tipo de cambio, categorías y métodos de pago.
         </li>
         <li>
           <strong>Presupuesto Familiar (si lo activás):</strong> los demás miembros del grupo ven tu

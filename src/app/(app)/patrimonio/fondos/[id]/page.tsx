@@ -8,7 +8,8 @@ import { BackButton } from "@/components/ui/BackButton";
 import { FondoMenu } from "@/components/patrimonio/FondoMenu";
 import { AgregarRendimientoDialog } from "@/components/patrimonio/AgregarRendimientoDialog";
 import { FondoPosicionDialog } from "@/components/patrimonio/FondoPosicionDialog";
-import { EliminarMovimientoButton } from "@/components/patrimonio/EliminarMovimientoButton";
+import { DonutChart } from "@/components/patrimonio/DonutChart";
+import { MovimientoItem } from "@/components/patrimonio/MovimientoItem";
 import {
   updateFondo,
   deleteFondo,
@@ -17,6 +18,7 @@ import {
   updateFondoPosicion,
   deleteFondoPosicion,
   eliminarMovimientoFondo,
+  editarMovimientoFondo,
 } from "../../actions";
 
 export default async function FondoDetallePage({
@@ -175,21 +177,6 @@ export default async function FondoDetallePage({
             <p className="text-[2.25rem] font-bold leading-tight text-navy">{fmt(saldoTotal)}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 border-t border-border pt-4">
-            <div>
-              <p className="text-xs text-gray-500">{t("fondos.fromSavings")}</p>
-              <p className="text-base font-medium text-green">{fmt(acumuladoAhorro)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">{t("fondos.fromInvestment")}</p>
-              <p className="text-base font-medium text-gold">{fmt(ganadoInversion)}</p>
-            </div>
-            <div className="col-span-2">
-              <p className="text-xs text-gray-500">{t("fondos.monthlyContribution")}</p>
-              <p className="text-base font-medium text-navy">{fmt(aporteMensualPromedio)}</p>
-            </div>
-          </div>
-
           <AgregarRendimientoDialog
             fondoId={fondo.id}
             moneda={fondo.moneda}
@@ -198,6 +185,21 @@ export default async function FondoDetallePage({
           />
         </CardBody>
       </Card>
+
+      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <Card className="p-4">
+          <p className="text-xs uppercase text-gray-500">{t("fondos.fromSavings")}</p>
+          <p className="text-lg font-semibold text-green">{fmt(acumuladoAhorro)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs uppercase text-gray-500">{t("fondos.fromInvestment")}</p>
+          <p className="text-lg font-semibold text-gold">{fmt(ganadoInversion)}</p>
+        </Card>
+        <Card className="col-span-2 p-4 sm:col-span-1">
+          <p className="text-xs uppercase text-gray-500">{t("fondos.monthlyContribution")}</p>
+          <p className="text-lg font-semibold text-navy">{fmt(aporteMensualPromedio)}</p>
+        </Card>
+      </div>
 
       <Card className="mb-6">
         <CardHeader>
@@ -212,42 +214,50 @@ export default async function FondoDetallePage({
             </span>
           )}
         </CardHeader>
-        <CardBody className="space-y-3">
-          {posiciones.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-700">
-                  {p.nombre} <span className="text-xs text-gray-400">({p.porcentaje}%)</span>
-                </p>
-                {p.tasa_retorno_estimada != null && p.plazo_proyeccion_anios != null && (
-                  <p className="text-xs text-gray-400">
-                    {p.tasa_retorno_estimada}% · {p.plazo_proyeccion_anios} {t("fondos.years")}
+        <CardBody className="flex flex-wrap items-start gap-6">
+          <div className="min-w-[14rem] flex-1 space-y-3">
+            {posiciones.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-700">
+                    {p.nombre} <span className="text-xs text-gray-400">({p.porcentaje}%)</span>
                   </p>
-                )}
+                  {p.tasa_retorno_estimada != null && p.plazo_proyeccion_anios != null && (
+                    <p className="text-xs text-gray-400">
+                      {p.tasa_retorno_estimada}% · {p.plazo_proyeccion_anios} {t("fondos.years")}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-navy">{fmt(saldoPorPosicion(p.id))}</span>
+                  <FondoPosicionDialog
+                    fondoId={fondo.id}
+                    posicion={p}
+                    asignadoOtras={totalPorcentajeAsignado - Number(p.porcentaje)}
+                    createAction={createFondoPosicion}
+                    updateAction={updateFondoPosicion}
+                    deleteAction={deleteFondoPosicion}
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-navy">{fmt(saldoPorPosicion(p.id))}</span>
-                <FondoPosicionDialog
-                  fondoId={fondo.id}
-                  posicion={p}
-                  asignadoOtras={totalPorcentajeAsignado - Number(p.porcentaje)}
-                  createAction={createFondoPosicion}
-                  updateAction={updateFondoPosicion}
-                  deleteAction={deleteFondoPosicion}
-                />
-              </div>
-            </div>
-          ))}
-          <FondoPosicionDialog
-            fondoId={fondo.id}
-            asignadoOtras={totalPorcentajeAsignado}
-            createAction={createFondoPosicion}
-            updateAction={updateFondoPosicion}
-            deleteAction={deleteFondoPosicion}
-          />
+            ))}
+            <FondoPosicionDialog
+              fondoId={fondo.id}
+              asignadoOtras={totalPorcentajeAsignado}
+              createAction={createFondoPosicion}
+              updateAction={updateFondoPosicion}
+              deleteAction={deleteFondoPosicion}
+            />
+          </div>
+          {posiciones.length > 0 && (
+            <DonutChart
+              data={posiciones.map((p) => ({ nombre: p.nombre, valor: saldoPorPosicion(p.id) }))}
+              moneda={fondo.moneda}
+            />
+          )}
         </CardBody>
       </Card>
 
@@ -333,16 +343,18 @@ export default async function FondoDetallePage({
                     </summary>
                     <ul className="divide-y divide-border pl-1">
                       {delAnio.map((m) => (
-                        <li key={m.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                          <div className="min-w-0">
-                            <p className="text-gray-700">
-                              {m.tipo === "rendimiento"
-                                ? m.descripcion || t("fondos.returnGeneric")
-                                : m.tipo === "saldo_inicial"
-                                  ? t("fondos.initialLabel")
-                                  : `${MESES[m.mes - 1]} ${m.anio}`}
-                            </p>
-                            <p className="text-xs text-gray-400">
+                        <MovimientoItem
+                          key={m.id}
+                          movimiento={m}
+                          titulo={
+                            m.tipo === "rendimiento"
+                              ? m.descripcion || t("fondos.returnGeneric")
+                              : m.tipo === "saldo_inicial"
+                                ? t("fondos.initialLabel")
+                                : `${MESES[m.mes - 1]} ${m.anio}`
+                          }
+                          subtitulo={
+                            <>
                               {m.tipo === "rendimiento"
                                 ? t("fondos.returnLabel")
                                 : m.tipo === "saldo_inicial"
@@ -352,17 +364,13 @@ export default async function FondoDetallePage({
                               {fondo.scope_type === "family" && m.created_by && (
                                 <> · {nombrePorUsuario.get(m.created_by) || "—"}</>
                               )}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <span
-                              className={`font-medium ${m.tipo === "rendimiento" ? "text-gold" : "text-navy"}`}
-                            >
-                              {fmt(Number(m.monto))}
-                            </span>
-                            <EliminarMovimientoButton movimientoId={m.id} action={eliminarMovimientoFondo} />
-                          </div>
-                        </li>
+                            </>
+                          }
+                          montoFmt={fmt(Number(m.monto))}
+                          editable={m.tipo !== "aporte_presupuesto"}
+                          editAction={editarMovimientoFondo}
+                          deleteAction={eliminarMovimientoFondo}
+                        />
                       ))}
                     </ul>
                   </details>

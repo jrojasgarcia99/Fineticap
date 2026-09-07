@@ -3,18 +3,16 @@ import { getPersonalContext, getFamilyBudgetContext } from "@/lib/data";
 import { calcularPosicionPatrimonial, edadDesde, formatoMoneda } from "@/lib/calculations";
 import { aPrimaria } from "@/lib/currency";
 import { tFor } from "@/lib/i18n";
-import type { Activo, Pasivo, Deuda, Fondo, FondoMovimiento } from "@/lib/types";
+import type { Activo, Deuda, Fondo, FondoMovimiento } from "@/lib/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/Card";
-import { ValueListCard } from "@/components/patrimonio/ValueListCard";
+import { ActivosCard } from "@/components/patrimonio/ActivosCard";
+import { DonutChart } from "@/components/patrimonio/DonutChart";
 import { FondosSection, type FondoListItem } from "@/components/patrimonio/FondosSection";
 import {
   addActivo,
   updateActivo,
   deleteActivo,
-  addPasivo,
-  updatePasivo,
-  deletePasivo,
   createFondo,
   updateFondo,
   deleteFondo,
@@ -25,10 +23,9 @@ export default async function PatrimonioPage() {
   const t = tFor(locale);
   const fam = await getFamilyBudgetContext({ supabase, user });
 
-  const [{ data: activos }, { data: pasivos }, { data: deudas }, { data: fondosPersonales }] =
+  const [{ data: activos }, { data: deudas }, { data: fondosPersonales }] =
     await Promise.all([
       supabase.from("activos").select("*").eq("space_id", space.id).order("created_at"),
-      supabase.from("pasivos").select("*").eq("space_id", space.id).order("created_at"),
       supabase.from("deudas").select("*").eq("space_id", space.id),
       supabase.from("fondos").select("*").eq("space_id", space.id).order("orden"),
     ]);
@@ -38,7 +35,6 @@ export default async function PatrimonioPage() {
     : { data: null };
 
   const activosList = (activos ?? []) as Activo[];
-  const pasivosList = (pasivos ?? []) as Pasivo[];
   const deudasList = (deudas ?? []) as Deuda[];
   const fondosList = [...((fondosPersonales ?? []) as Fondo[]), ...((fondosFamiliares ?? []) as Fondo[])];
   const fmt = (v: number) => formatoMoneda(v, currency.primaria);
@@ -65,12 +61,26 @@ export default async function PatrimonioPage() {
   );
 
   const totalActivos = activosList.reduce((a, x) => a + aPrimaria(Number(x.valor), x.moneda, currency), 0);
-  const totalPasivosVarios = pasivosList.reduce((a, x) => a + aPrimaria(Number(x.valor), x.moneda, currency), 0);
   const saldoDeudas = deudasList
     .filter((d) => d.estado === "Activa")
     .reduce((a, d) => a + aPrimaria(Number(d.saldo_actual), d.moneda, currency), 0);
-  const totalPasivos = totalPasivosVarios + saldoDeudas;
+  const totalPasivos = saldoDeudas;
   const patrimonioNeto = totalFondos + totalActivos - totalPasivos;
+
+  // Composición del patrimonio (para el gráfico circular): Fondos como una
+  // categoría propia, y los Activos agrupados por su categoría.
+  const totalPorCategoriaActivo = new Map<string, number>();
+  for (const a of activosList) {
+    const v = aPrimaria(Number(a.valor), a.moneda, currency);
+    totalPorCategoriaActivo.set(a.categoria, (totalPorCategoriaActivo.get(a.categoria) ?? 0) + v);
+  }
+  const composicion = [
+    ...(totalFondos > 0 ? [{ nombre: t("fondos.title"), valor: totalFondos }] : []),
+    ...Array.from(totalPorCategoriaActivo.entries()).map(([cat, valor]) => ({
+      nombre: t(`activos.cat.${cat}`),
+      valor,
+    })),
+  ];
 
   const salarioAnual = Number(space.salario_mensual) * 12;
   const edad = edadDesde(space.fecha_nacimiento);
@@ -117,30 +127,38 @@ export default async function PatrimonioPage() {
         />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <ValueListCard
-          title={t("patrimonio.assets")}
-          items={activosList.map((a) => ({
-            id: a.id, concepto: a.concepto, valor: Number(a.valor), moneda: a.moneda,
-          }))}
+      {composicion.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{t("patrimonio.compositionTitle")}</CardTitle>
+          </CardHeader>
+          <CardBody className="flex flex-wrap items-center gap-6">
+            <DonutChart data={composicion} moneda={currency.primaria} />
+            <ul className="min-w-[10rem] flex-1 space-y-2">
+              {composicion.map((c) => (
+                <li key={c.nombre} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-gray-600">{c.nombre}</span>
+                  <span className="font-medium text-navy">
+                    {fmt(c.valor)}{" "}
+                    <span className="text-xs text-gray-400">
+                      ({Math.round((c.valor / (patrimonioNeto + totalPasivos || 1)) * 100)}%)
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      )}
+
+      <div className="mb-6">
+        <ActivosCard
+          items={activosList}
           total={totalActivos}
-          totalColor="green"
           currency={currency}
-          addAction={addActivo}
+          createAction={addActivo}
           updateAction={updateActivo}
           deleteAction={deleteActivo}
-        />
-        <ValueListCard
-          title={t("patrimonio.liabilitiesOther")}
-          items={pasivosList.map((p) => ({
-            id: p.id, concepto: p.concepto, valor: Number(p.valor), moneda: p.moneda,
-          }))}
-          total={totalPasivosVarios}
-          totalColor="red"
-          currency={currency}
-          addAction={addPasivo}
-          updateAction={updatePasivo}
-          deleteAction={deletePasivo}
         />
       </div>
 

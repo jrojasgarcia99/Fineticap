@@ -1,7 +1,9 @@
 import Link from "next/link";
 import {
   getPersonalContext,
+  getFamilyBudgetContext,
   getFamilyRepartoContext,
+  getTotalFondos,
   ensurePersonalCategories,
 } from "@/lib/data";
 import {
@@ -14,7 +16,7 @@ import {
 } from "@/lib/calculations";
 import { convertirBudgetItems, convertirDeudas, aPrimaria } from "@/lib/currency";
 import { tFor } from "@/lib/i18n";
-import type { BudgetItem, Deuda, Activo, Pasivo, PersonalBudgetCategory } from "@/lib/types";
+import type { BudgetItem, Deuda, Activo, PersonalBudgetCategory } from "@/lib/types";
 import { SEMAFORO_COLOR } from "@/lib/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { KpiCard } from "@/components/ui/KpiCard";
@@ -35,25 +37,25 @@ export default async function DashboardPage({
 
   // Ninguna depende de la otra: en paralelo. La siguiente tanda de selects sí
   // depende de que ensurePersonalCategories haya sembrado categorías.
-  const [, reparto] = await Promise.all([
+  const [, reparto, fam] = await Promise.all([
     ensurePersonalCategories({ supabase, space }),
     getFamilyRepartoContext(currency, { supabase, user }),
+    getFamilyBudgetContext({ supabase, user }),
   ]);
 
-  const [{ data: items }, { data: deudas }, { data: activos }, { data: pasivos }, { data: cats }] =
+  const [{ data: items }, { data: deudas }, { data: activos }, { data: cats }, totalFondos] =
     await Promise.all([
       supabase.from("budget_items").select("*").eq("space_id", space.id).eq("mes", mes).eq("anio", anio),
       supabase.from("deudas").select("*").eq("space_id", space.id),
       supabase.from("activos").select("*").eq("space_id", space.id),
-      supabase.from("pasivos").select("*").eq("space_id", space.id),
       supabase.from("personal_budget_categories").select("*").eq("space_id", space.id).order("orden", { ascending: true }),
+      getTotalFondos({ supabase, space, familyBudgetId: fam?.familyBudget.id, currency }),
     ]);
 
   const categorias = (cats ?? []) as PersonalBudgetCategory[];
   const budgetItems = convertirBudgetItems((items ?? []) as BudgetItem[], currency);
   const deudasList = convertirDeudas((deudas ?? []) as Deuda[], currency);
   const activosList = (activos ?? []) as Activo[];
-  const pasivosList = (pasivos ?? []) as Pasivo[];
   const fmt = (v: number) => formatoMoneda(v, currency.primaria);
 
   const aporteFamiliar = reparto ? reparto.shareFor(mes, anio) : 0;
@@ -63,11 +65,10 @@ export default async function DashboardPage({
   const semaforos = calcularSemaforos(tot, categorias, metaDeuda, t("sem.deuda"));
 
   const totalActivos = activosList.reduce((a, x) => a + aPrimaria(Number(x.valor), x.moneda, currency), 0);
-  const totalPasivosVarios = pasivosList.reduce((a, x) => a + aPrimaria(Number(x.valor), x.moneda, currency), 0);
   const saldoDeudas = deudasList
     .filter((d) => d.estado === "Activa")
     .reduce((a, d) => a + Number(d.saldo_actual), 0);
-  const patrimonioNeto = totalActivos - (totalPasivosVarios + saldoDeudas);
+  const patrimonioNeto = totalFondos + totalActivos - saldoDeudas;
 
   const fondo = calcularFondoEmergencia(tot, 0, space);
   const salud = saludFinancieraGeneral(tot, categorias, metaDeuda, fondo.pctIdeal);

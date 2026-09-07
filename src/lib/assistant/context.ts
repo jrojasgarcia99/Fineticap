@@ -1,6 +1,8 @@
 import {
   getPersonalContext,
+  getFamilyBudgetContext,
   getFamilyRepartoContext,
+  getTotalFondos,
   ensurePersonalCategories,
 } from "@/lib/data";
 import {
@@ -21,7 +23,6 @@ import type {
   BudgetItem,
   Deuda,
   Activo,
-  Pasivo,
   PersonalBudgetCategory,
   Envelope,
   EnvelopeMovement,
@@ -60,29 +61,30 @@ export async function assembleAssistantPayload() {
   const mes = now.getMonth() + 1;
   const anio = now.getFullYear();
 
+  const fam = await getFamilyBudgetContext({ supabase, user });
+
   const [
     ,
     { data: items },
     { data: deudas },
     { data: activos },
-    { data: pasivos },
     { data: cats },
     { data: envs },
+    totalFondos,
   ] = await Promise.all([
     ensurePersonalCategories({ supabase, space }),
     supabase.from("budget_items").select("*").eq("space_id", space.id).eq("mes", mes).eq("anio", anio),
     supabase.from("deudas").select("*").eq("space_id", space.id),
     supabase.from("activos").select("*").eq("space_id", space.id),
-    supabase.from("pasivos").select("*").eq("space_id", space.id),
     supabase.from("personal_budget_categories").select("*").eq("space_id", space.id).order("orden", { ascending: true }),
     supabase.from("envelopes").select("*").order("orden", { ascending: true }),
+    getTotalFondos({ supabase, space, familyBudgetId: fam?.familyBudget.id, currency }),
   ]);
 
   const categorias = (cats ?? []) as PersonalBudgetCategory[];
   const budgetItems = convertirBudgetItems((items ?? []) as BudgetItem[], currency);
   const deudasList = convertirDeudas((deudas ?? []) as Deuda[], currency);
   const activosList = (activos ?? []) as Activo[];
-  const pasivosList = (pasivos ?? []) as Pasivo[];
   const envelopes = (envs ?? []) as Envelope[];
 
   const envIds = envelopes.map((e) => e.id);
@@ -106,10 +108,9 @@ export async function assembleAssistantPayload() {
   const salud = saludFinancieraGeneral(tot, categorias, metaDeuda, fondo.pctIdeal);
 
   const totalActivos = activosList.reduce((a, x) => a + aPrimaria(Number(x.valor), x.moneda, currency), 0);
-  const totalPasivosVarios = pasivosList.reduce((a, x) => a + aPrimaria(Number(x.valor), x.moneda, currency), 0);
   const deudasActivas = deudasList.filter((d) => d.estado === "Activa");
   const saldoDeudas = deudasActivas.reduce((a, d) => a + Number(d.saldo_actual), 0);
-  const patrimonioNeto = totalActivos - (totalPasivosVarios + saldoDeudas);
+  const patrimonioNeto = totalFondos + totalActivos - saldoDeudas;
 
   const edad = edadDesde(space.fecha_nacimiento);
   const posicion = calcularPosicionPatrimonial(Number(space.salario_mensual) * 12, edad, patrimonioNeto);
@@ -125,7 +126,7 @@ export async function assembleAssistantPayload() {
     saludKey: salud.mensajeKey,
     categorias,
     aporteFamiliar,
-    patrimonio: { totalActivos, totalPasivos: totalPasivosVarios + saldoDeudas, patrimonioNeto, edad, posicion },
+    patrimonio: { totalFondos, totalActivos, totalPasivos: saldoDeudas, patrimonioNeto, edad, posicion },
     deudas: { saldo: saldoDeudas, n: deudasActivas.length, snowball },
     fondo,
     fondoAcumulado: Number(space.fondo_acumulado) || 0,
@@ -153,6 +154,7 @@ type FormatArgs = {
   categorias: PersonalBudgetCategory[];
   aporteFamiliar: number;
   patrimonio: {
+    totalFondos: number;
     totalActivos: number;
     totalPasivos: number;
     patrimonioNeto: number;
@@ -215,10 +217,12 @@ function formatResumen(a: FormatArgs): string {
 
   lines.push(L("PATRIMONIO", "NET WORTH"));
   lines.push(
-    `- ${L("Activos", "Assets")}: ${m(a.patrimonio.totalActivos)} · ${L(
-      "Pasivos + deudas",
-      "Liabilities + debts",
-    )}: ${m(a.patrimonio.totalPasivos)} · ${L("Patrimonio neto", "Net worth")}: ${m(a.patrimonio.patrimonioNeto)}`,
+    `- ${L("Fondos de inversión/ahorro", "Investment/savings funds")}: ${m(a.patrimonio.totalFondos)} · ${L(
+      "Activos",
+      "Assets",
+    )}: ${m(a.patrimonio.totalActivos)} · ${L("Deudas", "Debts")}: ${m(
+      a.patrimonio.totalPasivos,
+    )} · ${L("Patrimonio neto", "Net worth")}: ${m(a.patrimonio.patrimonioNeto)}`,
   );
   if (a.patrimonio.edad && a.patrimonio.posicion.posicion) {
     lines.push(

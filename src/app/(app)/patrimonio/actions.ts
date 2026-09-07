@@ -3,11 +3,28 @@
 import { revalidatePath } from "next/cache";
 import { getPersonalContext, getFamilyBudgetContext } from "@/lib/data";
 import { normalizarMoneda } from "@/lib/currency";
-import { FONDO_TIPOS, FONDO_PLAZOS, type FondoTipo } from "@/lib/types";
+import { FONDO_TIPOS, FONDO_PLAZOS, ACTIVO_CATEGORIAS, type FondoTipo, type ActivoCategoria } from "@/lib/types";
 
 async function ctx() {
   const { space, currency, supabase, user } = await getPersonalContext();
   return { space, currency, supabase, user };
+}
+
+function parseActivoCategoria(formData: FormData): ActivoCategoria {
+  const raw = String(formData.get("categoria") || "");
+  return (ACTIVO_CATEGORIAS as string[]).includes(raw) ? (raw as ActivoCategoria) : "otro";
+}
+
+/** Los campos opcionales por categoría se mandan como detalle_<clave> —
+ *  no hace falta serializar JSON, se juntan acá los que vengan con valor. */
+function parseActivoDetalles(formData: FormData): Record<string, string> | null {
+  const detalles: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("detalle_") && typeof value === "string" && value.trim()) {
+      detalles[key.slice("detalle_".length)] = value.trim();
+    }
+  }
+  return Object.keys(detalles).length ? detalles : null;
 }
 
 export async function addActivo(formData: FormData) {
@@ -16,7 +33,14 @@ export async function addActivo(formData: FormData) {
   const valor = Number(formData.get("valor") || 0);
   const moneda = normalizarMoneda(formData.get("moneda"), currency.activas, currency.primaria);
   if (!concepto) return;
-  await supabase.from("activos").insert({ space_id: space.id, concepto, valor, moneda });
+  await supabase.from("activos").insert({
+    space_id: space.id,
+    concepto,
+    valor,
+    moneda,
+    categoria: parseActivoCategoria(formData),
+    detalles: parseActivoDetalles(formData),
+  });
   revalidatePath("/patrimonio");
   revalidatePath("/dashboard");
 }
@@ -30,7 +54,13 @@ export async function updateActivo(formData: FormData) {
   if (!id || !concepto) return;
   await supabase
     .from("activos")
-    .update({ concepto, valor, moneda })
+    .update({
+      concepto,
+      valor,
+      moneda,
+      categoria: parseActivoCategoria(formData),
+      detalles: parseActivoDetalles(formData),
+    })
     .eq("id", id)
     .eq("space_id", space.id);
   revalidatePath("/patrimonio");
@@ -41,41 +71,6 @@ export async function deleteActivo(formData: FormData) {
   const { space, supabase } = await ctx();
   const id = String(formData.get("id"));
   await supabase.from("activos").delete().eq("id", id).eq("space_id", space.id);
-  revalidatePath("/patrimonio");
-  revalidatePath("/dashboard");
-}
-
-export async function addPasivo(formData: FormData) {
-  const { space, currency, supabase } = await ctx();
-  const concepto = String(formData.get("concepto") || "").trim();
-  const valor = Number(formData.get("valor") || 0);
-  const moneda = normalizarMoneda(formData.get("moneda"), currency.activas, currency.primaria);
-  if (!concepto) return;
-  await supabase.from("pasivos").insert({ space_id: space.id, concepto, valor, moneda });
-  revalidatePath("/patrimonio");
-  revalidatePath("/dashboard");
-}
-
-export async function updatePasivo(formData: FormData) {
-  const { space, currency, supabase } = await ctx();
-  const id = String(formData.get("id"));
-  const concepto = String(formData.get("concepto") || "").trim();
-  const valor = Number(formData.get("valor") || 0);
-  const moneda = normalizarMoneda(formData.get("moneda"), currency.activas, currency.primaria);
-  if (!id || !concepto) return;
-  await supabase
-    .from("pasivos")
-    .update({ concepto, valor, moneda })
-    .eq("id", id)
-    .eq("space_id", space.id);
-  revalidatePath("/patrimonio");
-  revalidatePath("/dashboard");
-}
-
-export async function deletePasivo(formData: FormData) {
-  const { space, supabase } = await ctx();
-  const id = String(formData.get("id"));
-  await supabase.from("pasivos").delete().eq("id", id).eq("space_id", space.id);
   revalidatePath("/patrimonio");
   revalidatePath("/dashboard");
 }
@@ -232,6 +227,21 @@ export async function deleteFondo(formData: FormData) {
   revalidatePath("/familiar");
 }
 
+/** Corrige el monto/descripción de una entrada del historial ya registrada
+ *  (p. ej. un dato mal ingresado). No se usa para aportes distribuidos desde
+ *  el Presupuesto — esos se editan desde ahí (editarLineaDistribuida), para
+ *  no desincronizar el monto del presupuesto y el del fondo. */
+export async function editarMovimientoFondo(formData: FormData) {
+  const { supabase } = await ctx();
+  const id = String(formData.get("id") || "");
+  const monto = Number(formData.get("monto") || 0);
+  const descripcion = String(formData.get("descripcion") || "").trim() || null;
+  if (!id || !monto) return;
+  await supabase.from("fondo_movimientos").update({ monto, descripcion }).eq("id", id);
+  revalidatePath("/patrimonio");
+  revalidatePath("/familiar");
+}
+
 /** Borra una sola entrada del historial de un fondo (p. ej. un dato mal
  *  ingresado) — el total del fondo se recalcula solo, porque es una suma de
  *  sus movimientos. */
@@ -347,8 +357,10 @@ export async function editarLineaDistribuida(formData: FormData) {
   revalidatePath("/presupuesto");
 }
 
-/** Rendimiento/dividendo cargado a mano — a una posición específica, o al
- *  fondo en general si no se elige ninguna. */
+/** Rendimiento/dividendo cargado a mano — a una diversificación específica,
+ *  o repartido entre todas según su % configurado si el fondo tiene
+ *  diversificación y no se elige ninguna en particular (nunca un movimiento
+ *  "general" ambiguo que no cuadre con el desglose por diversificación). */
 export async function agregarRendimiento(formData: FormData) {
   const { supabase, user } = await ctx();
   const fondo_id = String(formData.get("fondo_id") || "");
@@ -358,17 +370,37 @@ export async function agregarRendimiento(formData: FormData) {
   const descripcion = String(formData.get("descripcion") || "").trim() || null;
   if (!fondo_id || !monto) return;
   const now = new Date();
-  await supabase.from("fondo_movimientos").insert({
+  const base = {
     fondo_id,
-    posicion_id,
-    tipo: "rendimiento",
-    monto,
+    tipo: "rendimiento" as const,
     moneda,
     mes: now.getMonth() + 1,
     anio: now.getFullYear(),
     descripcion,
     created_by: user.id,
-  });
+  };
+
+  if (posicion_id) {
+    await supabase.from("fondo_movimientos").insert({ ...base, posicion_id, monto });
+  } else {
+    const { data: posiciones } = await supabase
+      .from("fondo_posiciones")
+      .select("id, porcentaje")
+      .eq("fondo_id", fondo_id)
+      .order("orden");
+
+    if (posiciones && posiciones.length > 0) {
+      const totalPct = posiciones.reduce((a, p) => a + Number(p.porcentaje), 0) || 100;
+      const filas = posiciones.map((p) => ({
+        ...base,
+        posicion_id: p.id,
+        monto: (monto * Number(p.porcentaje)) / totalPct,
+      }));
+      await supabase.from("fondo_movimientos").insert(filas);
+    } else {
+      await supabase.from("fondo_movimientos").insert({ ...base, posicion_id: null, monto });
+    }
+  }
   revalidatePath("/patrimonio");
   revalidatePath("/familiar");
 }
