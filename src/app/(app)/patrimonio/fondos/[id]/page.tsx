@@ -8,6 +8,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { FondoMenu } from "@/components/patrimonio/FondoMenu";
 import { AgregarRendimientoDialog } from "@/components/patrimonio/AgregarRendimientoDialog";
 import { FondoPosicionDialog } from "@/components/patrimonio/FondoPosicionDialog";
+import { EliminarMovimientoButton } from "@/components/patrimonio/EliminarMovimientoButton";
 import {
   updateFondo,
   deleteFondo,
@@ -15,6 +16,7 @@ import {
   createFondoPosicion,
   updateFondoPosicion,
   deleteFondoPosicion,
+  eliminarMovimientoFondo,
 } from "../../actions";
 
 export default async function FondoDetallePage({
@@ -182,6 +184,10 @@ export default async function FondoDetallePage({
               <p className="text-xs text-gray-500">{t("fondos.fromInvestment")}</p>
               <p className="text-base font-medium text-gold">{fmt(ganadoInversion)}</p>
             </div>
+            <div className="col-span-2">
+              <p className="text-xs text-gray-500">{t("fondos.monthlyContribution")}</p>
+              <p className="text-base font-medium text-navy">{fmt(aporteMensualPromedio)}</p>
+            </div>
           </div>
 
           <AgregarRendimientoDialog
@@ -348,11 +354,14 @@ export default async function FondoDetallePage({
                               )}
                             </p>
                           </div>
-                          <span
-                            className={`shrink-0 font-medium ${m.tipo === "rendimiento" ? "text-gold" : "text-navy"}`}
-                          >
-                            {fmt(Number(m.monto))}
-                          </span>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <span
+                              className={`font-medium ${m.tipo === "rendimiento" ? "text-gold" : "text-navy"}`}
+                            >
+                              {fmt(Number(m.monto))}
+                            </span>
+                            <EliminarMovimientoButton movimientoId={m.id} action={eliminarMovimientoFondo} />
+                          </div>
                         </li>
                       ))}
                     </ul>

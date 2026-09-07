@@ -220,7 +220,26 @@ export async function deleteFondo(formData: FormData) {
   const { supabase } = await ctx();
   const id = String(formData.get("id"));
   if (!id) return;
+  // Se borran antes los movimientos y posiciones a mano, en vez de confiar
+  // solo en el ON DELETE CASCADE: la política RLS de fondo_movimientos
+  // necesita encontrar el fondo padre para autorizar el borrado, y si el
+  // padre ya se borró primero dentro de la misma transacción, esa
+  // verificación falla y deja movimientos huérfanos sin borrar.
+  await supabase.from("fondo_movimientos").delete().eq("fondo_id", id);
+  await supabase.from("fondo_posiciones").delete().eq("fondo_id", id);
   await supabase.from("fondos").delete().eq("id", id);
+  revalidatePath("/patrimonio");
+  revalidatePath("/familiar");
+}
+
+/** Borra una sola entrada del historial de un fondo (p. ej. un dato mal
+ *  ingresado) — el total del fondo se recalcula solo, porque es una suma de
+ *  sus movimientos. */
+export async function eliminarMovimientoFondo(formData: FormData) {
+  const { supabase } = await ctx();
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+  await supabase.from("fondo_movimientos").delete().eq("id", id);
   revalidatePath("/patrimonio");
   revalidatePath("/familiar");
 }
